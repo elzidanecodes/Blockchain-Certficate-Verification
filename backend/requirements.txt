@@ -1,0 +1,6 @@
+web3
+Flask
+cryptography
+qrcode
+opencv-python
+flask-cors
