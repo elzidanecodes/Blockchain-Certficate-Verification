@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generate Certificate</title>
+    <script src="/static/script.js" defer></script>
+  </head>
+  <body>
+    <h2>Generate Certificate</h2>
+    <form id="generateForm">
+      <label for="name">Full Name:</label>
+      <input type="text" id="name" name="name" required />
+
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" required />
+
+      <label for="coursename">Course Name:</label>
+      <input type="text" id="coursename" name="coursename" required />
+
+      <label for="institution">Institution Name:</label>
+      <input type="text" id="institution" name="institution" required />
+
+      <label for="startdate">Start Date:</label>
+      <input type="date" id="startdate" name="startdate" required />
+
+      <label for="enddate">End Date:</label>
+      <input type="date" id="enddate" name="enddate" required />
+
+      <button type="submit">Generate Certificate</button>
+    </form>
+
+    <div id="result"></div>
+  </body>
+</html>

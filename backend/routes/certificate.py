@@ -1,54 +1,80 @@
-import datetime
+from flask import Blueprint, request, jsonify, send_file
+import os
 import json
-import hashlib
 import qrcode
-from flask import Blueprint, request, jsonify
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives import hashes
-from config import contract, web3
-from database import save_to_sqlite
-from security import encrypt_data
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from security import generate_md5_hash
 
 certificate_bp = Blueprint("certificate", __name__)
 
-# Fungsi untuk hashing MD5
-def generate_md5_hash(data):
-    return hashlib.md5(data.encode()).hexdigest()
+CERTIFICATE_FOLDER = "static/generated_certificates/"
+QR_FOLDER = "static/qr_codes/"
+os.makedirs(CERTIFICATE_FOLDER, exist_ok=True)
+os.makedirs(QR_FOLDER, exist_ok=True)
 
-# Fungsi untuk membuat QR Code
+# Fungsi untuk generate QR Code dari data sertifikat
 def generate_qr_code(data, output_file):
     qr = qrcode.make(data)
     qr.save(output_file)
 
-@certificate_bp.route("/add_block", methods=["POST"])
-def add_block():
+# Fungsi untuk membuat sertifikat dengan QR Code
+def generate_certificate(data):
+    template_path = "frontend/static/certificate_template.png"  # Path template sertifikat
+    output_path = os.path.join(CERTIFICATE_FOLDER, f"{data['certificate_id']}.png")
+
+    img = Image.open(template_path)
+    draw = ImageDraw.Draw(img)
+
     try:
-        data = {
-            "certificate_id": request.form['courseid'],
-            "name": request.form['name'],
-            "email": request.form['email'],
-            "phnumber": request.form['phnumber'],
-            "coursename": request.form['coursename'],
-            "instname": request.form['instname'],
-            "startdate": request.form['startdate'],
-            "enddate": request.form['enddate'],
-            "tanggal_terbit": datetime.datetime.now().strftime("%Y-%m-%d")
-        }
+        font = ImageFont.truetype("arial.ttf", 40)
+    except IOError:
+        font = ImageFont.load_default()
 
-        encrypted_data = encrypt_data(data)
-        document_hash = generate_md5_hash(encrypted_data)
-        sender_address = web3.eth.accounts[0]
-        tx_hash = contract.functions.addCertificate(document_hash).transact({'from': sender_address, 'gas': 2000000})
-        web3.eth.wait_for_transaction_receipt(tx_hash)
-        
-        save_to_sqlite(data)
-        qr_filename = f"static/qr_codes/qr_{document_hash}.png"
-        generate_qr_code(document_hash, qr_filename)
+    # Posisi teks dalam sertifikat
+    draw.text((200, 300), f"{data['name']}", fill="black", font=font)
+    draw.text((200, 400), f"Course: {data['coursename']}", fill="black", font=font)
+    draw.text((200, 500), f"Institution: {data['institution']}", fill="black", font=font)
+    draw.text((200, 600), f"Date: {data['startdate']} - {data['enddate']}", fill="black", font=font)
 
-        return jsonify({
-            "qr_code": f"qr_{document_hash}.png",
-            "tx_hash": web3.to_hex(tx_hash)
-        }), 200
+    # Generate QR Code
+    qr_data = json.dumps(data)
+    qr_output = os.path.join(QR_FOLDER, f"{data['certificate_id']}.png")
+    generate_qr_code(qr_data, qr_output)
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Tambahkan QR Code ke sertifikat
+    qr_img = Image.open(qr_output).resize((150, 150))
+    img.paste(qr_img, (950, 500))
+
+    img.save(output_path)
+    return output_path
+
+# Endpoint untuk membuat sertifikat dan menyimpan ke blockchain
+@certificate_bp.route("/generate_certificate", methods=["POST"])
+def generate():
+    data = request.json
+    data['certificate_id'] = generate_md5_hash(data['name'] + data['coursename'])
+    certificate_hash = generate_md5_hash(data['certificate_id'])
+
+    # Simpan hash ke blockchain
+    blockchain_response = requests.post("http://localhost:5050/add_certificate", json={"certificate_hash": certificate_hash})
+
+    if blockchain_response.status_code != 200:
+        return jsonify({"error": "Failed to store certificate in blockchain"}), 500
+
+    certificate_path = generate_certificate(data)
+
+    return jsonify({
+        "message": "Certificate generated and stored in blockchain",
+        "certificate_id": data['certificate_id'],
+        "hash": certificate_hash,
+        "download_url": f"/download_certificate/{data['certificate_id']}.png"
+    }), 200
+
+# Endpoint untuk mengunduh sertifikat yang telah dibuat
+@certificate_bp.route("/download_certificate/<filename>", methods=["GET"])
+def download_certificate(filename):
+    file_path = os.path.join(CERTIFICATE_FOLDER, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    return jsonify({"error": "Certificate not found"}), 404

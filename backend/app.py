@@ -4,9 +4,7 @@ from routes.verification import verification_bp
 
 app = Flask(__name__)
 
-# Register blueprint routes
-app.register_blueprint(certificate_bp)
-app.register_blueprint(verification_bp)
+
 
 @app.route("/")
 def index():
