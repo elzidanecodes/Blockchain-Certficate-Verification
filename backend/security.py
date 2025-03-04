@@ -7,7 +7,6 @@ from cryptography.hazmat.primitives import serialization, hashes
 base_dir = os.path.dirname(os.path.abspath(__file__))
 private_key_path = os.path.join(base_dir, "private_key.pem")
 public_key_path = os.path.join(base_dir, "public_key.pem")
-INSTITUTION_NAME = "Politeknik Negeri Malang"
 
 # Fungsi untuk membuat kunci RSA jika belum ada
 def generate_rsa_keys():
@@ -36,25 +35,18 @@ def generate_rsa_keys():
 
         print("RSA keys generated successfully.")
 
-# Panggil fungsi untuk memastikan kunci ada
-generate_rsa_keys()
+# Load kunci RSA
+def load_private_key():
+    try:
+        with open(private_key_path, "rb") as f:
+            return serialization.load_pem_private_key(f.read(), password=None)
+    except Exception as e:
+        print(f"Error loading RSA keys: {e}")
+        generate_rsa_keys()
+        return load_private_key()
 
-# Fungsi untuk membaca kunci RSA
-def load_keys():
-    with open(private_key_path, "rb") as f:
-        private_key = serialization.load_pem_private_key(
-            f.read(),
-            password=None
-        )
-    with open(public_key_path, "rb") as f:
-        public_key = serialization.load_pem_public_key(f.read())
-    return private_key, public_key
-
-# Load kunci untuk digunakan di seluruh aplikasi
-private_key, public_key = load_keys()
-
-# Fungsi untuk hashing MD5 dengan tambahan timestamp
+# Fungsi untuk menghasilkan hash MD5 dengan timestamp
 def generate_md5_hash(data):
     timestamp = str(int(time.time()))
-    combined_data = data + INSTITUTION_NAME + timestamp
+    combined_data = data + timestamp
     return hashlib.md5(combined_data.encode()).hexdigest()

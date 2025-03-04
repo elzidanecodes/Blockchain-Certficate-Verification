@@ -3,7 +3,6 @@ from routes.certificate import certificate_bp
 from routes.blockchain import blockchain_bp
 from routes.verification import verification_bp
 from flask_cors import CORS
-from routes.verification import verification_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -15,7 +14,7 @@ app.register_blueprint(verification_bp, url_prefix="/verification")
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("generate.html")
 
 if __name__ == "__main__":
     app.run(debug=True)

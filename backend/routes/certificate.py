@@ -20,7 +20,7 @@ def generate_qr_code(data, output_file):
 
 # Fungsi untuk membuat sertifikat dengan QR Code
 def generate_certificate(data):
-    template_path = "frontend/static/certificate_template.png"  # Path template sertifikat
+    template_path = os.path.join(os.getcwd(), "static", "certificate_template.png") # Path template sertifikat
     output_path = os.path.join(CERTIFICATE_FOLDER, f"{data['certificate_id']}.png")
 
     img = Image.open(template_path)
@@ -52,29 +52,39 @@ def generate_certificate(data):
 # Endpoint untuk membuat sertifikat dan menyimpan ke blockchain
 @certificate_bp.route("/generate_certificate", methods=["POST"])
 def generate():
-    data = request.json
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
     data['certificate_id'] = generate_md5_hash(data['name'] + data['coursename'])
     certificate_hash = generate_md5_hash(data['certificate_id'])
 
     # Simpan hash ke blockchain
-    blockchain_response = requests.post("http://localhost:5050/add_certificate", json={"certificate_hash": certificate_hash})
+    blockchain_response = requests.post(
+        "http://127.0.0.1:5000/blockchain/add_certificate",
+        json={"certificate_hash": certificate_hash}
+    )
 
     if blockchain_response.status_code != 200:
         return jsonify({"error": "Failed to store certificate in blockchain"}), 500
-
-    certificate_path = generate_certificate(data)
 
     return jsonify({
         "message": "Certificate generated and stored in blockchain",
         "certificate_id": data['certificate_id'],
         "hash": certificate_hash,
-        "download_url": f"/download_certificate/{data['certificate_id']}.png"
+        "download_url": f"/certificate/download/{data['certificate_id']}.png"
     }), 200
+
+
 
 # Endpoint untuk mengunduh sertifikat yang telah dibuat
 @certificate_bp.route("/download_certificate/<filename>", methods=["GET"])
 def download_certificate(filename):
     file_path = os.path.join(CERTIFICATE_FOLDER, filename)
+    print(f"Checking file path: {file_path}")  # Debugging
     if os.path.exists(file_path):
+        print("Certificate found, sending file.")  # Debugging
         return send_file(file_path, as_attachment=True)
+    print("Certificate not found!")  # Debugging
     return jsonify({"error": "Certificate not found"}), 404
+
