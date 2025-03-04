@@ -25,4 +25,4 @@ with open(contract_path) as f:
     contract_json = json.load(f)
     contract_abi = contract_json['abi']
 
-contract = web3.eth.contract(address=contract_address, abi=contract_abi)
+contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
