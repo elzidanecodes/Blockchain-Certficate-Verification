@@ -17,3 +17,12 @@ if web3.is_connected():
 else:
     print("Failed to connect to Ganache")
     
+# Load ABI contract
+base_dir = os.path.dirname(os.path.abspath(__file__))
+contract_path = os.path.join(base_dir, '../blockchain/build/contracts/CertificateVerification.json')
+
+with open(contract_path) as f:
+    contract_json = json.load(f)
+    contract_abi = contract_json['abi']
+
+contract = web3.eth.contract(address=contract_address, abi=contract_abi)
