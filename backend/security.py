@@ -1,34 +1,45 @@
 import os
+import hashlib
+import time
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
-import json
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 private_key_path = os.path.join(base_dir, "private_key.pem")
 public_key_path = os.path.join(base_dir, "public_key.pem")
+INSTITUTION_NAME = "Politeknik Negeri Malang"
 
-# Fungsi untuk membuat pasangan kunci RSA
+# Fungsi untuk membuat kunci RSA jika belum ada
 def generate_rsa_keys():
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=4096,
-    )
-    public_key = private_key.public_key()
-    
-    with open(private_key_path, "wb") as f:
-        f.write(private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
-        ))
+    if not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
+        print("Generating new RSA keys...")
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+        )
+        public_key = private_key.public_key()
 
-    with open(public_key_path, "wb") as f:
-        f.write(public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ))
+        # Simpan private key
+        with open(private_key_path, "wb") as f:
+            f.write(private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            ))
 
-# Fungsi untuk memuat kunci RSA
+        # Simpan public key
+        with open(public_key_path, "wb") as f:
+            f.write(public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            ))
+
+        print("RSA keys generated successfully.")
+
+# Panggil fungsi untuk memastikan kunci ada
+generate_rsa_keys()
+
+# Fungsi untuk membaca kunci RSA
 def load_keys():
     with open(private_key_path, "rb") as f:
         private_key = serialization.load_pem_private_key(
@@ -39,20 +50,11 @@ def load_keys():
         public_key = serialization.load_pem_public_key(f.read())
     return private_key, public_key
 
-# Pastikan kunci ada
-if not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
-    generate_rsa_keys()
-
+# Load kunci untuk digunakan di seluruh aplikasi
 private_key, public_key = load_keys()
 
-# Fungsi untuk enkripsi data
-def encrypt_data(data):
-    encrypted = public_key.encrypt(
-        json.dumps(data).encode(),
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-    return encrypted.hex()
+# Fungsi untuk hashing MD5 dengan tambahan timestamp
+def generate_md5_hash(data):
+    timestamp = str(int(time.time()))
+    combined_data = data + INSTITUTION_NAME + timestamp
+    return hashlib.md5(combined_data.encode()).hexdigest()
