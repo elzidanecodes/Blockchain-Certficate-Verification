@@ -3,9 +3,13 @@ from routes.certificate import certificate_bp
 from routes.blockchain import blockchain_bp
 from routes.verification import verification_bp
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)
+
+# Debugging untuk melihat working directory Flask
+print(f"Current working directory in Flask: {os.getcwd()}")
 
 # Register Blueprints
 app.register_blueprint(certificate_bp, url_prefix="/certificate")
