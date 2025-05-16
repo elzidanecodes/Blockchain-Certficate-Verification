@@ -1,19 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Certificate</title>
-    <script src="static/script.js" defer></script>
-</head>
-<body>
-    <h2>Verifikasi Sertifikat</h2>
-    <form id="uploadForm">
-        <label for="file">Unggah Sertifikat:</label>
-        <input type="file" id="file" name="file" accept=".png,.jpg,.jpeg" required>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verifikasi Sertifikat</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 2rem;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      input[type="file"] {
+        width: 100%;
+        padding: 10px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-top: 1rem;
+      }
+      #result {
+        margin-top: 1rem;
+        font-weight: bold;
+      }
+      .certificate-img {
+        margin-top: 1rem;
+        max-width: 100%;
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Verifikasi Sertifikat</h2>
+      <form id="verifyForm">
+        <input
+          type="file"
+          name="file"
+          id="fileInput"
+          accept="image/png"
+          required
+        />
+        <input
+          type="hidden"
+          id="certificateIdHidden"
+          name="certificate_id"
+          value="{{ certificate_id }}"
+        />
         <button type="submit">Verifikasi</button>
-    </form>
+      </form>
+      <div id="result"></div>
+      <img
+        id="certificatePreview"
+        class="certificate-img"
+        style="display: none"
+      />
+    </div>
 
-    <div id="verificationResult"></div>
-</body>
+    <script>
+      document
+        .getElementById("verifyForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const fileInput = document.getElementById("fileInput");
+          const formData = new FormData();
+
+          formData.append("file", fileInput.files[0]);
+          formData.append(
+            "certificate_id",
+            document.getElementById("certificateIdHidden").value
+          );
+
+          const response = await fetch("/verification/verify_certificate", {
+            method: "POST",
+            body: formData,
+          });
+
+          const resultDiv = document.getElementById("result");
+          const certificateImg = document.getElementById("certificatePreview");
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.valid) {
+              resultDiv.innerHTML = `<span style='color:green'>✅ Sertifikat Valid! ID: ${data.certificate_id}</span>`;
+
+              const certResp = await fetch(
+                `/certificate/download_certificate/${data.certificate_id}`
+              );
+              const blob = await certResp.blob();
+              const url = URL.createObjectURL(blob);
+
+              certificateImg.src = url;
+              certificateImg.style.display = "block";
+            } else {
+              resultDiv.innerHTML = `<span style='color:red'>❌ Sertifikat Tidak Valid</span>`;
+              certificateImg.style.display = "none";
+            }
+          } else {
+            resultDiv.innerHTML = `<span style='color:red'>❌ Terjadi kesalahan saat memverifikasi</span>`;
+            certificateImg.style.display = "none";
+          }
+        });
+  </script>
+
+
+  </body>
 </html>

@@ -59,7 +59,7 @@ module.exports = {
 
   compilers: {
     solc: {
-      version: "0.8.0", // Sesuaikan dengan versi Solidity yang digunakan
+      version: "0.8.12", // Sesuaikan dengan versi Solidity yang digunakan
       settings: {
         optimizer: {
           enabled: true,

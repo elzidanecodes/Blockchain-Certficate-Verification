@@ -3,55 +3,67 @@ from config import web3, contract
 
 blockchain_bp = Blueprint("blockchain", __name__)
 
-# Fungsi untuk menambahkan sertifikat ke blockchain
 @blockchain_bp.route("/add_certificate", methods=["POST"])
 def add_certificate():
     try:
         data = request.json
-        certificate_hash = data.get("certificate_hash")
+        hash_md5 = data.get("hash_md5")
 
-        if not certificate_hash:
-            return jsonify({"error": "Certificate hash is required"}), 400
+        if not hash_md5:
+            return jsonify({"error": "hash_md5 is required"}), 400
 
         sender_address = web3.eth.accounts[0]
-        tx_hash = contract.functions.addCertificate(certificate_hash).transact({'from': sender_address, 'gas': 2000000})
+
+        # 🔹 Kirim transaksi ke Blockchain → kontrak akan generate ID CERT-001 dst
+        certificate_id = contract.functions.addCertificate(hash_md5).call({'from': sender_address})
+        tx_hash = contract.functions.addCertificate(hash_md5).transact({'from': sender_address, 'gas': 2000000})
+
         web3.eth.wait_for_transaction_receipt(tx_hash)
+
+        print(f"✅ Blockchain Certificate ID: {certificate_id}")
 
         return jsonify({
             "message": "Certificate stored in blockchain",
+            "certificate_id": certificate_id,
             "tx_hash": web3.to_hex(tx_hash)
         }), 200
 
     except Exception as e:
+        print(f"❌ Blockchain Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+def store_signature(signature: str) -> str:
+    sender_address = web3.eth.accounts[0]
+    tx_hash = contract.functions.addCertificate(signature).transact({'from': sender_address, 'gas': 2000000})
+    print(f"📤 TX Hash: {tx_hash.hex()} - waiting confirmation...")
+    receipt = web3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+    print(f"✅ Confirmed in block: {receipt.blockNumber}")
+    
+    certificate_counter = contract.functions.certificateCounter().call()
+    certificate_id = f"CERT-{certificate_counter:03d}"
+    return certificate_id
 
-
-# Fungsi untuk verifikasi sertifikat di blockchain
 @blockchain_bp.route("/verify_certificate", methods=["POST"])
 def verify_certificate():
     try:
         data = request.json
-        certificate_hash = data.get("certificate_hash")
+        certificate_id = data.get("certificate_id")
 
-        if not certificate_hash:
-            return jsonify({"error": "Certificate hash is required"}), 400
+        if not certificate_id:
+            return jsonify({"error": "certificate_id is required"}), 400
 
-        # Cek apakah sertifikat ada di blockchain
-        is_verified = contract.functions.verifyCertificate(certificate_hash).call()
+        # 🔍 Panggil smart contract untuk ambil data
+        is_valid, returned_id, returned_hash = contract.functions.getCertificate(certificate_id).call()
 
-        if is_verified:
-            # Ambil detail sertifikat dari blockchain
-            certificate_data = contract.functions.certificates(certificate_hash).call()
-            owner_address = certificate_data[1]
-            timestamp = certificate_data[2]
-
-            return jsonify({
-                "is_verified": True,
-                "owner": owner_address,
-                "timestamp": timestamp
-            }), 200
-        else:
+        if not is_valid:
             return jsonify({"is_verified": False, "message": "Certificate not found in blockchain"}), 404
 
+        return jsonify({
+            "is_verified": True,
+            "certificate_id": returned_id,
+            "hash_md5": returned_hash
+        }), 200
+
     except Exception as e:
+        print(f"❌ Verification Error: {str(e)}")
         return jsonify({"error": str(e)}), 500

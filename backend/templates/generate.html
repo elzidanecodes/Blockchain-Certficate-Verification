@@ -10,44 +10,44 @@
 
 <body>
     <header>
-        <img src="static/Certificate Form Logo.jpg" alt="Digital India Logo">
+        <img src="static/Certificate Form Logo.jpg" alt="Instansi Logo">
         <h2>Generate your Certificate here</h2>
     </header>
 
     <div class="input-container">
-        <label for="name">Enter Name :</label>
-        <input type="text" id="name" placeholder="Donald Trump" required>
+        <label for="name">Nama :</label>
+        <input type="text" id="name" placeholder="Laita Zidane Azizi" required>
         <br><br>
 
-        <label for="email">Enter Email :</label>
-        <input type="text" id="email" placeholder="Enter your email here">
+        <label for="email">Email :</label>
+        <input type="text" id="email" placeholder="Masukkan Email Penerima" required>
         <br><br>
 
-        <label for="phnumber">Enter Contact Number :</label>
-        <input type="number" id="phnumber" placeholder="Enter your contact number here">
+        <label for="phnumber">No hp :</label>
+        <input type="number" id="phnumber" placeholder="Masukkan Nomor Telepon Penerima" required>
         <br><br>
 
-        <label for="coursename">Enter Course Name :</label>
-        <input type="text" id="coursename" placeholder="Type your course name here">
+        <label for="coursename">Nama Kursus :</label>
+        <input type="text" id="coursename" placeholder="Masukkan Nama Kursus" required>
         <br><br>
 
-        <label for="courseid">Enter Course Id :</label>
-        <input type="text" id="courseid" placeholder="Type your course id here">
+        <label for="courseid">Course Id :</label>
+        <input type="text" id="courseid" placeholder="Masukkan ID Kursus" required>
         <br><br>
 
-        <label for="instname">Enter Institute Name and City :</label>
-        <input type="text" id="instname" placeholder="Enter name comma city here">
+        <label for="instname">Nama Institusi dan Kota :</label>
+        <input type="text" id="instname" placeholder="Masukkan Nama Institusi dan Kota" required>
         <br><br>
 
-        <label for="startdate">Enter Course Start Date :</label>
-        <input type="date" id="startdate" placeholder="Enter the start date here">
+        <label for="startdate">Tanggal Mulai Kursus :</label>
+        <input type="date" id="startdate" placeholder="Masukkan Tanggal Mulai Kursus" required>
         <br><br>
 
-        <label for="enddate">Enter Course Completion Date :</label>
-        <input type="date" id="enddate" placeholder="Enter the end date here">
+        <label for="enddate">Tanggal Selesai Kursus :</label>
+        <input type="date" id="enddate" placeholder="Masukkan Tanggal Selesai Kursus" required>
         <br><br>
 
-        <button onclick="generateCertificate()">Generate Now</button>
+        <button onclick="uploadCertificateInfo()">Generate Now</button>
     </div>
 
     <a id="downloadLink" style="display: none;" download="Certificate.png">
