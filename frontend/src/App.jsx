@@ -1,12 +1,25 @@
-import React from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Sidebar from "./components/Sidebar";
+import Home from "./pages/Home";
+import Generate from "./pages/Generate";
+import Validation from "./pages/Validation";
 
 function App() {
-  console.log("✅ React Jalan")
   return (
-    <div className="bg-green-600 text-white text-2xl p-6 rounded-xl text-center shadow-lg">
-      Tailwind Aktif! ✅
-    </div>
-  )
+    <Router>
+      <div className="flex">
+        <Sidebar />
+        <div className="flex-1 bg-default min-h-screen p-6 dark:bg-gray-900">
+          <Routes>
+            <Route path="/" element={<Navigate to="/home" />} />
+            <Route path="/home" element={<Home />} />
+            <Route path="/generate" element={<Generate />} />
+            <Route path="/validation" element={<Validation />} />
+          </Routes>
+        </div>
+      </div>
+    </Router>
+  );
 }
 
-export default App
+export default App;

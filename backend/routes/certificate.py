@@ -80,15 +80,15 @@ def generate_certificate(data):
 
     try:
         font_course_id = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-SemiBold.ttf"), 35)
-        font_name = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Bold.ttf"), 150)
+        font_name = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Bold.ttf"), 130)
         font_date = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Medium.ttf"), 26)
-        font_date_implement = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Bold.ttf"), 30)
+        font_date_implement = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Bold.ttf"), 45)
     except IOError:
         font_course_id = font_name = font_date = font_date_implement = ImageFont.load_default()
 
     draw.text((542, 678), f"{data['courseid']}", fill="white", font=font_course_id)
     draw.text((513, 835), f"{data['name']}", fill=(31, 142, 126), font=font_name)
-    draw.text((513, 1275), f"{format_date(data['startdate'])} - {format_date(data['enddate'])}", fill="black", font=font_date_implement)
+    draw.text((513, 1255), f"{format_date(data['startdate'])} - {format_date(data['enddate'])}", fill="black", font=font_date_implement)
 
     try:
         expiry = datetime.strptime(data['enddate'], "%Y-%m-%d") + timedelta(days=3*365)

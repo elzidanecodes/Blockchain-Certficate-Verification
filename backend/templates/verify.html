@@ -66,8 +66,10 @@
         class="certificate-img"
         style="display: none"
       />
+      <a id="downloadVerifiedLink" style="display: none">
+        <button type="button">Download Sertifikat</button>
+      </a>
     </div>
-
     <script>
       document
         .getElementById("verifyForm")
@@ -89,31 +91,49 @@
 
           const resultDiv = document.getElementById("result");
           const certificateImg = document.getElementById("certificatePreview");
+          const downloadLink = document.getElementById("downloadVerifiedLink");
 
           if (response.ok) {
             const data = await response.json();
             if (data.valid) {
               resultDiv.innerHTML = `<span style='color:green'>✅ Sertifikat Valid! ID: ${data.certificate_id}</span>`;
 
-              const certResp = await fetch(
-                `/certificate/download_certificate/${data.certificate_id}`
+              // Ambil hasil verifikasi dari MongoDB
+              const mongoResp = await fetch(
+                `/verification/get_verified_image/${data.certificate_id}`
               );
-              const blob = await certResp.blob();
-              const url = URL.createObjectURL(blob);
+              const mongoData = await mongoResp.json();
 
-              certificateImg.src = url;
-              certificateImg.style.display = "block";
+              if (mongoData.image_base64) {
+                const base64 = mongoData.image_base64;
+                const blob = await (
+                  await fetch(`data:image/png;base64,${base64}`)
+                ).blob();
+                const url = URL.createObjectURL(blob);
+
+                // Tampilkan preview
+                certificateImg.src = url;
+                certificateImg.style.display = "block";
+
+                // Siapkan link download
+                downloadLink.href = url;
+                downloadLink.setAttribute(
+                  "download",
+                  `${data.certificate_id}_verified.png`
+                );
+                downloadLink.style.display = "inline";
+              }
             } else {
               resultDiv.innerHTML = `<span style='color:red'>❌ Sertifikat Tidak Valid</span>`;
               certificateImg.style.display = "none";
+              downloadLink.style.display = "none";
             }
           } else {
             resultDiv.innerHTML = `<span style='color:red'>❌ Terjadi kesalahan saat memverifikasi</span>`;
             certificateImg.style.display = "none";
+            downloadLink.style.display = "none";
           }
         });
-  </script>
-
-
+    </script>
   </body>
 </html>

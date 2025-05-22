@@ -2,9 +2,5 @@
 @tailwind components;
 @tailwind utilities;
 @tailwind screens;
-@tailwind typography;
-@tailwind forms;
-@tailwind aspect-ratio;
-@tailwind line-clamp;
-@tailwind scrollbar;
-@tailwind dark;
+
+@import 'flowbite';

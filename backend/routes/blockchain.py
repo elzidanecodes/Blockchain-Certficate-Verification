@@ -15,10 +15,12 @@ def add_certificate():
         sender_address = web3.eth.accounts[0]
 
         # 🔹 Kirim transaksi ke Blockchain → kontrak akan generate ID CERT-001 dst
-        certificate_id = contract.functions.addCertificate(hash_md5).call({'from': sender_address})
         tx_hash = contract.functions.addCertificate(hash_md5).transact({'from': sender_address, 'gas': 2000000})
-
         web3.eth.wait_for_transaction_receipt(tx_hash)
+        
+         # 🔹 Ambil certificate ID terakhir dari blockchain
+        certificate_counter = contract.functions.certificateCounter().call()
+        certificate_id = f"CERT-{certificate_counter:03d}"
 
         print(f"✅ Blockchain Certificate ID: {certificate_id}")
 
