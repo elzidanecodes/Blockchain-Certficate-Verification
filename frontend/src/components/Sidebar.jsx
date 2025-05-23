@@ -34,7 +34,7 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`sticky top-0 h-screen bg-white dark:bg-gray-900 dark:shadow-gray-800 shadow-lg z-50 p-6 transition-all duration-300 overflow-y-auto ${
+      className={`sticky top-0 h-screen bg-white dark:bg-gray-900 dark:shadow-gray-800 shadow-lg z-50 p-6 transition-all duration-300 overflow-y-auto select-none cursor-default ${
         isOpen ? "w-64" : "w-20"
       }`}
     >

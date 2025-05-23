@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Home from "./pages/Home";
 import Generate from "./pages/Generate";
@@ -9,7 +14,7 @@ function App() {
     <Router>
       <div className="flex">
         <Sidebar />
-        <div className="flex-1 bg-default min-h-screen p-6 dark:bg-gray-900">
+        <div className="flex-1 bg-default min-h-screen p-6 dark:bg-gray-900 select-none cursor-default">
           <Routes>
             <Route path="/" element={<Navigate to="/home" />} />
             <Route path="/home" element={<Home />} />

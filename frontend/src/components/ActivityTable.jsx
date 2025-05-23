@@ -83,9 +83,17 @@ const ActivityTable = () => {
                   : "-"}
               </td>
               <td className="py-3 px-6">
-                {row.status === "Valid"
-                  ? "Sertifikat valid"
-                  : "Sertifikat tidak valid"}
+                <span
+                  className={`px-3 py-1 text-[10px] font-semibold rounded-50 ${
+                    row.status === "Valid"
+                      ? "bg-green-light text-green-dark border-green-dark border-2"
+                      : "bg-red-light border-2 border-red-dark text-red-dark"
+                  } text-sm font-normal`}
+                >
+                  {row.status === "Valid"
+                    ? "Sertifikat valid"
+                    : "Sertifikat tidak valid"}
+                </span>
               </td>
               <td className="py-3 px-6">
                 <span
