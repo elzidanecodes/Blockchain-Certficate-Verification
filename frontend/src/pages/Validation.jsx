@@ -38,7 +38,7 @@ const Validation = () => {
   const handleUpload = async () => {
     if (!image) return;
 
-    controllerRef.current = new AbortController(); // buat abort controller
+    controllerRef.current = new AbortController();
     setCompletedSteps([0]);
 
     const formData = new FormData();

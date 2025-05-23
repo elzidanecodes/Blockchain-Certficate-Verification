@@ -13,7 +13,7 @@ web3 = Web3(Web3.HTTPProvider(GANACHE_URL))
 
 # Cek koneksi ke blockchain
 if web3.is_connected():
-    print("Connected to Ganache")
+    print("Connected to Etherium network")
 else:
     print("Failed to connect to Ganache")
 
