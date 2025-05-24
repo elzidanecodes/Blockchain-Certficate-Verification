@@ -40,7 +40,7 @@ const ActivityTable = () => {
             Aktivitas Terkini
           </h3>
           <p className="text-sm text-green-medium">
-            Riwayat aktivitas verifikasi sertifikat Anda.
+            Riwayat aktivitas verifikasi sertifikat.
           </p>
         </div>
         <div className="flex items-center gap-3 mt-4 md:mt-0">

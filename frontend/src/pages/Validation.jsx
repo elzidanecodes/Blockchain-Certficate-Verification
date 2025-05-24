@@ -197,12 +197,13 @@ const Validation = () => {
                 }
               }}
               onDragOver={(e) => e.preventDefault()}
-              className="flex flex-col items-center justify-center w-[330px] h-[208px] border-2 border-dashed border-blue-dark rounded-10 cursor-pointer bg-blue-light md:w-[530px] md:h-[250px] lg:w-[500px] lg:h-[300px] dark:bg-gray-700 dark:border-gray-500"
+              className="flex flex-col items-center justify-center border-2 border-dashed border-blue-dark rounded-10 cursor-pointer bg-blue-light md:w-[130px] md:h-[90px] lg:w-[530px] lg:h-[300px] dark:bg-gray-700 dark:border-gray-500"
             >
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <Icon
                   name="image"
-                  className="text-blue md:w-[35px] lg:w-[55px]"
+                  className="text-blue md:w-[35px] md:h-[35px] lg:w-[55px] lg:h-[55px] mb-2"
+                  style={{ width: "50px", height: "50px" }}
                 />
                 <p className="mb-2 text-lg text-gray-500 md:text-2xl">
                   Drag & drop files or{" "}
