@@ -133,8 +133,8 @@ def generate():
 
 @certificate_bp.route("/download_certificate/<certificate_id>", methods=["GET"])
 def download_certificate(certificate_id):
-    contract_address = contract.address  # ✅ tambahkan ini
-    record = get_certificate_by_id(certificate_id, contract_address)  # ✅ sesuaikan pemanggilan
+    contract_address = contract.address 
+    record = get_certificate_by_id(certificate_id, contract_address)
 
     if not record:
         return jsonify({"error": "Certificate not found"}), 404
