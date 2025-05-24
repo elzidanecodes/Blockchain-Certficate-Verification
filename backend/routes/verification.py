@@ -106,7 +106,6 @@ def extract_text_from_image(results):
     else:
         print("❌ Data tidak lengkap.")
         return ""
-    return name, course_id, start_date, end_date
 
 def extract_certificate_id_from_qr(image):
     decoded_objects = decode(image)
@@ -121,7 +120,6 @@ def extract_certificate_id_from_qr(image):
 @verification_bp.route("/verify_certificate", methods=["POST"])
 def verify():
     step_durations = {}
-    start_total = time.perf_counter()
 
     try:
         if 'file' not in request.files:

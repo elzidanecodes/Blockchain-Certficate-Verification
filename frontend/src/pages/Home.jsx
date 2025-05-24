@@ -20,7 +20,7 @@ const Home = () => {
   }, []);
 
     return (
-      <div className="space-y-6 px-6 py-4 pb-8 dark:bg-gray-900 min-h-screen overflow-y-auto ">
+      <div className="space-y-6 px-14 py-7 pb-8 dark:bg-gray-900 min-h-screen overflow-y-auto ">
         <div className="flex flex-col md:flex-row justify-between items-start gap-6 px-6 py-4">
           <div className="flex-1 max-w-[700px]">
             <h2 className="text-[50px] font-bold text-blue-dark mb-4">

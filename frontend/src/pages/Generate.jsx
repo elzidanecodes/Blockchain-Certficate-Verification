@@ -33,7 +33,7 @@ const Generate = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen px-6 py-4 dark:bg-gray-900 dark:text-white overflow-y-auto">
+    <div className="flex flex-col min-h-screen px-14 py-7 dark:bg-gray-900 dark:text-white overflow-y-auto">
       <h2 className="text-[50px] font-bold text-blue-dark mb-4">
         Generate Sertifikat
       </h2>

@@ -111,7 +111,7 @@ const Validation = () => {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen px-6 py-4 dark:bg-gray-900 dark:text-white">
+    <div className="flex flex-col min-h-screen px-14 py-7 dark:bg-gray-900 dark:text-white">
       <h2 className="text-[30px] font-bold text-blue-dark mb-4 md:text-[50px]">
         Verifikasi Sertifikat
       </h2>
@@ -282,17 +282,23 @@ const Validation = () => {
               Detail Sertifikat
             </h3>
             <ul className="text-sm space-y-4">
-              <li>
-                <strong>Status:</strong>{" "}
-                <span
-                  className={
-                    result.valid
-                      ? "text-green-success font-medium"
-                      : "text-red-dark font-bold"
-                  }
-                >
-                  {result.valid ? "✅ Sertifikat valid" : "❌ Tidak valid"}
-                </span>
+              <li className="flex items-center gap-2">
+                <strong>Status:</strong>
+                {result.valid ? (
+                  <span className="flex items-center gap-2 text-green-success font-medium">
+                    <span className="bg-green-success text-white rounded-50">
+                      <Icon name="checklist" className="w-[15px] h-[15px]" />
+                    </span>
+                    Sertifikat valid!
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 text-red-dark font-medium">
+                    <span className="bg-red-dark text-white rounded-50">
+                      <Icon name="close" className="w-[15px] h-[15px]" />
+                    </span>
+                    Sertifikat tidak valid
+                  </span>
+                )}
               </li>
               <li>
                 <strong>Cert ID:</strong> {result.certificate_id}
@@ -317,10 +323,13 @@ const Validation = () => {
               <li>
                 <strong>Hash MD5:</strong> {result.hash}
               </li>
-              <li>
+              <li className="flex items-center gap-2">
                 <strong>Signature:</strong>{" "}
-                <span className="text-green-success">
-                  ✔ Diverifikasi menggunakan RSA
+                <span className="flex items-center gap-2 text-green-success font-medium">
+                  <span className="bg-green-success text-white rounded-50">
+                    <Icon name="checklist" className="w-[15px] h-[15px]" />
+                  </span>
+                  Diverifikasi oleh RSA Signature
                 </span>
               </li>
             </ul>
