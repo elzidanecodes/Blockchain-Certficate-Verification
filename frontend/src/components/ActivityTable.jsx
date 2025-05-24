@@ -14,6 +14,12 @@ const ActivityTable = () => {
   const startIdx = (currentPage - 1) * itemsPerPage + 1;
   const endIdx = Math.min(currentPage * itemsPerPage, totalData);
   const currentItems = filteredActivities.slice(startIdx - 1, endIdx);
+  
+  // Calculate total certificates and verified certificates cardstat
+  const totalCertificates = activities.length;
+  const totalVerified = activities.filter(
+    (row) => row.verified_at !== null
+  ).length;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,7 +94,7 @@ const ActivityTable = () => {
                     row.status === "Valid"
                       ? "bg-green-light text-green-dark border-green-dark border-2"
                       : "bg-red-light border-2 border-red-dark text-red-dark"
-                  } text-sm font-normal`}
+                  } font-normal`}
                 >
                   {row.status === "Valid"
                     ? "Sertifikat valid"
