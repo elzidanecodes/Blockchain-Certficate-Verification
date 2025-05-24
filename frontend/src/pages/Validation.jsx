@@ -11,8 +11,7 @@ const Validation = () => {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [durations, setDurations] = useState({});
   const fileInputRef = useRef(null);
-  const controllerRef = useRef(null); 
-
+  const controllerRef = useRef(null);
 
   const handleReset = () => {
     if (controllerRef.current) {
@@ -20,7 +19,7 @@ const Validation = () => {
     }
     setImage(null);
     setResult(null);
-    setCurrentStep(0);
+    setCurrentStep(undefined);
     setCompletedSteps([]);
     setDurations({});
     setIsStepFailed(false);
@@ -186,8 +185,18 @@ const Validation = () => {
 
           <div className="space-y-6">
             <h2 className="text-lg font-semibold mb-2">Unggah File</h2>
-            <label
-              htmlFor="dropzone-file"
+            <div
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                  setImage(file);
+                  setResult(null);
+                  setCompletedSteps([]);
+                  setCurrentStep(undefined);
+                }
+              }}
+              onDragOver={(e) => e.preventDefault()}
               className="flex flex-col items-center justify-center w-[330px] h-[208px] border-2 border-dashed border-blue-dark rounded-10 cursor-pointer bg-blue-light md:w-[530px] md:h-[250px] lg:w-[500px] lg:h-[300px] dark:bg-gray-700 dark:border-gray-500"
             >
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -195,7 +204,7 @@ const Validation = () => {
                   name="image"
                   className="text-blue md:w-[35px] lg:w-[55px]"
                 />
-                <p className="mb-2 text-lg  text-gray-500 md:text-2xl">
+                <p className="mb-2 text-lg text-gray-500 md:text-2xl">
                   Drag & drop files or{" "}
                   <span className="font-semibold text-blue-dark underline">
                     Browse
@@ -205,11 +214,13 @@ const Validation = () => {
                   Supported formats: PNG, JPG, JPEG
                 </p>
               </div>
+
               {image && (
                 <div className="text-center mt-2 text-sm text-blue-dark font-medium">
                   File terpilih: <span className="italic">{image.name}</span>
                 </div>
               )}
+
               <input
                 ref={fileInputRef}
                 id="dropzone-file"
@@ -226,7 +237,8 @@ const Validation = () => {
                   }
                 }}
               />
-            </label>
+            </div>
+
             <div className="mt-4 flex gap-2">
               <button
                 onClick={handleUpload}
@@ -245,7 +257,6 @@ const Validation = () => {
         </div>
       </div>
 
-      {/* Hasil */}
       {/* Hasil */}
       {result && result.image_base64 && (
         <div className="bg-white shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-4 py-8 dark:bg-gray-800 dark:text-white">

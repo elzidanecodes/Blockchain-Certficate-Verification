@@ -14,7 +14,7 @@ function App() {
     <Router>
       <div className="flex">
         <Sidebar />
-        <div className="flex-1 bg-default min-h-screen p-6 dark:bg-gray-900 select-none cursor-default">
+        <div className="flex-1 bg-default h-full dark:bg-gray-900 overflow-y-auto select-none cursor-default">
           <Routes>
             <Route path="/" element={<Navigate to="/home" />} />
             <Route path="/home" element={<Home />} />

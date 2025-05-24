@@ -51,6 +51,7 @@ const Sidebar = () => {
             </h1>
           )}
         </div>
+        
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="text-gray-600 dark:text-gray-300 focus:outline-none"
@@ -58,6 +59,10 @@ const Sidebar = () => {
           <Icon name={isOpen ? "close" : "menu"} className="w-6 h-6" />
         </button>
       </div>
+
+      <div className="border-b border-gray-300 dark:border-gray-600 mb-4"></div>
+
+      {/* Navigation Menu */}
 
       <nav className="flex flex-col gap-2 mb-6">
         {menus.map((item) => (
