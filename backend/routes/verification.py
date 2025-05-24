@@ -12,7 +12,7 @@ from pyzbar.pyzbar import decode
 from urllib.parse import urlparse, parse_qs
 from config import web3, contract
 from crypto.hash_utils import generate_md5_hash
-from crypto.rsa_utils import verify_signature, load_public_key
+from crypto.rsa_utils import verify_signature
 from database.mongo import get_certificate_by_id, save_verification_result
 
 verification_bp = Blueprint("verification", __name__)
@@ -58,7 +58,7 @@ def extract_text_from_image(results):
             name = " ".join(name_parts).strip()
             break
 
-    # =====================[ 2. CARI DAN BENTUK TANGGAL LENGKAP ]=====================
+    # =====================[ 2. CARI TANGGAL ]=====================
     raw_dates = []
     for i in range(len(results) - 2):
         d, m, y = results[i:i+3]
@@ -66,7 +66,6 @@ def extract_text_from_image(results):
             full_date = f"{int(d):02d} {m} {y}"
             raw_dates.append(full_date)
 
-    # Fallback: juga cari tanggal langsung dari gabungan string
     joined_text = " ".join(results)
     regex_dates = re.findall(r'\d{1,2} [A-Za-z]+ \d{4}', joined_text)
     for d in regex_dates:
@@ -191,7 +190,7 @@ def verify():
             try:
                 ttd_path = os.path.abspath(os.path.join("static", "ttd.png"))
                 ttd_img = Image.open(ttd_path).convert("RGBA").resize((250, 100))
-                img.paste(ttd_img, (513, 1300), ttd_img)  # posisi di bawah tanggal, sesuaikan jika perlu
+                img.paste(ttd_img, (513, 1300), ttd_img)  # posisi di bawah tanggal
             except Exception as e:
                 print("⚠️ Gagal menambahkan tanda tangan:", str(e))
 
