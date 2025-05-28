@@ -8,6 +8,7 @@ import io
 import numpy as np
 import os
 from PIL import Image 
+from datetime import datetime
 from pyzbar.pyzbar import decode
 from urllib.parse import urlparse, parse_qs
 from config import web3, contract
@@ -19,8 +20,6 @@ verification_bp = Blueprint("verification", __name__)
 reader = easyocr.Reader(['en', 'id'], gpu=False)
 
 def extract_text_from_image(results):
-    from datetime import datetime
-    import re
 
     print("📄 Hasil EasyOCR:")
     for r in results:
@@ -30,81 +29,70 @@ def extract_text_from_image(results):
         print("❌ OCR hasil terlalu sedikit:", results)
         return ""
 
-    course_id = ""
+    no_sertifikat = ""
     name = ""
-    start_date = ""
-    end_date = ""
+    student_id = ""
+    department = ""
+    test_date = ""
 
-    months = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ]
+    combined = list(map(str.strip, results))
+    for i, line in enumerate(combined):
+        line_lower = line.lower()
 
-    # =====================[ 1. CARI COURSE_ID DAN NAMA ]=====================
-    for i, text in enumerate(results):
-        if re.match(r'^[A-Z]{2,4}\d{4,}$', text.strip()) and not course_id:
-            course_id = text.strip()
-            name_parts = []
-            for j in range(1, 4):
-                if i + j < len(results):
-                    next_line = results[i + j].strip()
-                    if re.match(r'^\d{1,2} [A-Za-z]+ \d{4}$', next_line):
-                        break
-                    if re.match(r'^[A-Z]{2,4}\d{4,}$', next_line):
-                        break
-                    if len(next_line.split()) > 4:
-                        break
-                    name_parts.append(next_line)
-            name = " ".join(name_parts).strip()
-            break
+        # Tangkap No Sertifikat
+        if "no:" in line_lower and not no_sertifikat:
+            # Ambil setelah "No:" jika satu baris
+            if ":" in line:
+                parts = line.split(":")
+                if len(parts) > 1 and len(parts[1].strip()) > 5:
+                    no_sertifikat = parts[1].strip()
+            # Atau baris berikutnya
+            elif i + 1 < len(combined):
+                next_line = combined[i + 1].strip()
+                if len(next_line) > 5:
+                    no_sertifikat = next_line
 
-    # =====================[ 2. CARI TANGGAL ]=====================
-    raw_dates = []
-    for i in range(len(results) - 2):
-        d, m, y = results[i:i+3]
-        if d.isdigit() and m in months and y.isdigit():
-            full_date = f"{int(d):02d} {m} {y}"
-            raw_dates.append(full_date)
+        # Tangkap Nama (setelah label 'Name')
+        elif "name" in line_lower and not name:
+            if i + 1 < len(combined):
+                possible_name = combined[i + 1].strip()
+                if len(possible_name.split()) >= 2:
+                    name = possible_name
 
-    joined_text = " ".join(results)
-    regex_dates = re.findall(r'\d{1,2} [A-Za-z]+ \d{4}', joined_text)
-    for d in regex_dates:
-        if d not in raw_dates:
-            raw_dates.append(d)
+        # Tangkap Student ID
+        elif "student id" in line_lower and not student_id:
+            if i + 1 < len(combined):
+                sid = combined[i + 1].strip()
+                if sid.isdigit() and len(sid) >= 6:
+                    student_id = sid
+            elif line.strip().isdigit() and len(line.strip()) >= 6:
+                student_id = line.strip()
+                
+        # Department
+        elif "department" in line_lower and not department:
+            if i + 1 < len(combined):
+                department = combined[i + 1].strip()
 
-    def parse_date(dstr):
-        try:
-            return datetime.strptime(dstr, "%d %B %Y")
-        except:
-            return None
+        # Test Date
+        elif "test date" in line_lower and not test_date:
+            if i + 1 < len(combined):
+                test_date_line = combined[i + 1].strip()
+                if test_date_line.startswith(":"):
+                    test_date_line = test_date_line[1:].strip()
+                test_date = test_date_line
 
-    if len(raw_dates) >= 2:
-        candidates = []
-        for i in range(len(raw_dates)):
-            for j in range(i + 1, len(raw_dates)):
-                d1 = parse_date(raw_dates[i])
-                d2 = parse_date(raw_dates[j])
-                if d1 and d2:
-                    delta = abs((d2 - d1).days)
-                    if 5 <= delta <= 365:
-                        start, end = sorted([d1, d2])
-                        candidates.append((start.strftime("%d %B %Y"), end.strftime("%d %B %Y"), delta))
-        if candidates:
-            best = sorted(candidates, key=lambda x: x[2])[0]
-            start_date, end_date = best[0], best[1]
+    ocr_string = f"{no_sertifikat}|{name}|{student_id}|{department}|{test_date}"
+    print("📌 Ekstrak OCR:", ocr_string)
 
-    # =====================[ DEBUG + VALIDASI ]=====================
-    print("📌 name:", name)
-    print("📌 course_id:", course_id)
-    print("📌 dates:", raw_dates)
-
-    if all([name, course_id, start_date, end_date]):
-        final_data = f"{name}|{course_id}|{start_date}|{end_date}"
-        print("📌 Ekstrak final:", final_data)
-        return final_data
-    else:
-        print("❌ Data tidak lengkap.")
-        return ""
+    if all([no_sertifikat, name, student_id]):
+        return {
+            "no_sertifikat": no_sertifikat,
+            "name": name,
+            "student_id": student_id,
+            "department": department,
+            "test_date": test_date
+        }
+    return {}
 
 def extract_certificate_id_from_qr(image):
     decoded_objects = decode(image)
@@ -118,115 +106,78 @@ def extract_certificate_id_from_qr(image):
 
 @verification_bp.route("/verify_certificate", methods=["POST"])
 def verify():
-    step_durations = {}
-
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file uploaded"}), 400
 
         file = request.files['file']
-        if file.filename == '':
-            return jsonify({"error": "Empty filename"}), 400
-
-        img = Image.open(file.stream)
+        img = Image.open(file.stream).convert("RGB")
         img_np = np.array(img)
 
-        certificate_id = request.form.get("certificate_id") or extract_certificate_id_from_qr(img_np)
+        # Ambil certificate_id dari QR
+        certificate_id = extract_certificate_id_from_qr(img_np)
         if not certificate_id:
-            return jsonify({"error": "QR Code not valid or certificate_id not found"}), 400
+            return jsonify({"error": "QR Code tidak valid"}), 400
 
-        print("🔎 Certificate ID yang terdeteksi:", certificate_id)
-
+        # OCR
         results = reader.readtext(img_np, detail=0)
-        print("🧠 OCR Results Mentah:", results)
-
-        start_ocr = time.perf_counter()
         extracted_text = extract_text_from_image(results)
-        step_durations["extract"] = time.perf_counter() - start_ocr
+        if not extracted_text:
+            return jsonify({"error": "Gagal mengekstrak data dari gambar"}), 400
 
-        if not extracted_text or not extracted_text.strip():
-            print("❌ extracted_text kosong atau tidak valid:", extracted_text)
-            return jsonify({"error": "Could not extract valid certificate data"}), 400
+        no_sertif = extracted_text["no_sertifikat"]
+        name = extracted_text["name"]
+        student_id = extracted_text["student_id"]
+        department = extracted_text.get("department", "")
+        test_date = extracted_text.get("test_date", "")
 
-        print("📦 extracted_text:", extracted_text)
-        
-        # Parsing hasil OCR yang sudah di-join
-        try:
-            name, course_id, start_date, end_date = extracted_text.split("|")
-        except:
-            name = "-"
-            course_id = "-"
-            start_date = "-"
-            end_date = "-"
+        hash_input = f"{no_sertif}|{name}|{student_id}"
+        hash_ulang = generate_md5_hash(hash_input)
+        print("🔍 Hash input:", hash_input)
 
-        
-
-        hash_ulang = generate_md5_hash(extracted_text)
-        print("🔐 Hash ulang (MD5):", hash_ulang)
-        
-        start_blockchain = time.perf_counter()
+        # Ambil signature dari blockchain
         valid, cert_id, blockchain_signature_b64 = contract.functions.getCertificate(certificate_id).call()
-        step_durations["blockchain"] = time.perf_counter() - start_blockchain
-        print("🧾 Dari blockchain:", valid, cert_id, blockchain_signature_b64)
+        if not valid:
+            return jsonify({"error": "Certificate ID tidak ditemukan di blockchain"}), 404
 
-        if not valid or not blockchain_signature_b64:
-            return jsonify({"error": "Certificate not found or invalid on blockchain"}), 404
-
-        start_rsa = time.perf_counter()
         rsa_valid = verify_signature(hash_ulang, blockchain_signature_b64)
-        step_durations["rsa"] = time.perf_counter() - start_rsa
-        print("🔏 Signature RSA valid:", rsa_valid)
-        result_valid = rsa_valid
-        
-        start_generate = time.perf_counter()
+
+        # Tambahkan label ke gambar
         draw = ImageDraw.Draw(img)
         font = ImageFont.load_default()
-        label_text = "Signature: VALID" if result_valid else "Signature: INVALID"
-        label_color = "green" if result_valid else "red"
-        draw.text((100, img.height - 50), label_text, fill=label_color, font=font)
+        draw.text((100, img.height - 50), "VALID" if rsa_valid else "INVALID", fill="green" if rsa_valid else "red", font=font)
 
-        # ===== Tambahkan tanda tangan =====
-        if result_valid:
+        if rsa_valid:
             try:
-                ttd_path = os.path.abspath(os.path.join("static", "ttd.png"))
-                ttd_img = Image.open(ttd_path).convert("RGBA").resize((250, 100))
-                img.paste(ttd_img, (513, 1300), ttd_img)  # posisi di bawah tanggal
+                ttd_img = Image.open("static/ttd.png").convert("RGBA").resize((250, 100))
+                img.paste(ttd_img, (350, 1140), ttd_img)
+                img.paste(ttd_img, (1400, 1140), ttd_img)
             except Exception as e:
-                print("⚠️ Gagal menambahkan tanda tangan:", str(e))
-
+                print("⚠️ Gagal pasang tanda tangan:", e)
 
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        step_durations["generate"] = time.perf_counter() - start_generate
-        
-        contract_address = contract.address
+
         save_verification_result({
             "certificate_id": certificate_id,
-            "contract_address": contract_address,
-            "timestamp": datetime.utcnow(),
+            "contract_address": contract.address,
             "image_base64": img_base64,
             "hash": hash_ulang,
-            "valid": result_valid
+            "valid": rsa_valid
         })
-        
+
         return jsonify({
-            "message": "Verification completed",
+            "message": "Verifikasi selesai",
             "certificate_id": certificate_id,
             "valid": rsa_valid,
             "image_base64": img_base64,
             "hash": hash_ulang,
             "name": name,
-            "course_id": course_id,
-            "start_date": start_date,
-            "end_date": end_date,
-            "verified_at": datetime.utcnow().isoformat(),
-            "step_durations": {
-                "extract": int(step_durations["extract"] * 1000),
-                "blockchain": int(step_durations["blockchain"] * 1000),
-                "rsa": int(step_durations["rsa"] * 1000),
-                "generate": int(step_durations["generate"] * 1000),
-            }
+            "student_id": student_id,
+            "no_sertifikat": no_sertif,
+            "department": department,
+            "test_date": test_date
         })
 
     except Exception as e:

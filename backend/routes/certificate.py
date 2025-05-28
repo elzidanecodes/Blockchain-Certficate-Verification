@@ -16,7 +16,7 @@ certificate_bp = Blueprint("certificate", __name__)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 FONT_DIR = os.path.join(os.path.dirname(BASE_DIR), "static", "font")
-TEMPLATE_PATH = os.path.join(os.path.dirname(BASE_DIR), "static", "certificate_template.png")
+TEMPLATE_PATH = os.path.join(os.path.dirname(BASE_DIR), "static", "pect_template.png")
 
 # Fungsi untuk format tanggal
 def format_date(date_str):
@@ -31,83 +31,94 @@ def get_certificate_id_from_blockchain():
     return contract.functions.certificateCounter().call()
 
 def generate_certificate(data):
+    from PIL import ImageFont
+
     # Validasi input
-    required_fields = ["name", "coursename", "courseid", "startdate", "enddate"]
+    required_fields = [
+        "no_sertifikat", "name", "student_id", "department", "test_date",
+        "listening", "reading", "writing", "total_lr", "total_writing"
+    ]
     for field in required_fields:
         if field not in data or not data[field]:
             raise ValueError(f"Missing required field: {field}")
-    
-    contract_address = contract.address
-    # Hash + Signature + Encrypt
-    start = format_date(data['startdate'])  # "31 January 2025"
-    end = format_date(data['enddate'])      # "27 April 2025"
-    hash_input = f"{data['name']}|{data['courseid']}|{start}|{end}"
-    print("📄 Hash input:", hash_input)
+
+    # Format hash input
+    hash_input = f"{data['no_sertifikat']}|{data['name']}|{data['student_id']}"
     md5_hash = generate_md5_hash(hash_input)
-    print("📄 MD5 Hash:", md5_hash)
+
+    # Digital signature
     private_key = load_private_key()
     signature = sign_data(md5_hash, private_key)
 
+    # Enkripsi data user
     user_info = {
-        "name": data["name"],
-        "email": data.get("email", "-"),
-        "phone": data.get("phone", "-"),
-        "institution": data.get("institution", "-"),
-        "course": data["coursename"],
-        "course_id": data["courseid"],
-        "start_date": data["startdate"],
-        "end_date": data["enddate"]
+        **{k: data[k] for k in required_fields},
     }
     encrypted_info = encrypt_data(user_info, AES_SECRET_KEY)
 
-    # Transaksi Blockchain
+    # Transaksi ke blockchain
     certificate_id = store_signature(signature)
+    contract_address = contract.address
 
-    # QR Code base64
+    # Buat QR code
     qr_data = f"http://127.0.0.1:5000/verify?certificate_id={certificate_id}"
-    qr = qrcode.make(qr_data)
+    qr_img = qrcode.make(qr_data).convert("RGBA").resize((200, 200))
     qr_buffer = io.BytesIO()
-    qr.save(qr_buffer, format="PNG")
-    qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode("utf-8")
-    qr_img = Image.open(io.BytesIO(qr_buffer.getvalue())).resize((200, 200))
+    qr_img.save(qr_buffer, format="PNG")
+    qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode()
+    
+    # Ambil pixel dan buat transparan
+    datas = qr_img.getdata()
+    newData = []
+    for item in datas:
+        # Jika putih, buat transparan
+        if item[:3] == (255, 255, 255):
+            newData.append((255, 255, 255, 0))  # 0 = transparan
+        else:
+            newData.append(item)
 
-    # Generate sertifikat dari template
+    qr_img.putdata(newData)
+
+    # Load template sertifikat
     if not os.path.exists(TEMPLATE_PATH):
-        raise FileNotFoundError("Certificate template not found.")
+        raise FileNotFoundError("Template sertifikat tidak ditemukan")
 
     img = Image.open(TEMPLATE_PATH)
     draw = ImageDraw.Draw(img)
 
+    # Font
     try:
-        font_course_id = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-SemiBold.ttf"), 35)
-        font_name = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Bold.ttf"), 130)
-        font_date = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Medium.ttf"), 26)
-        font_date_implement = ImageFont.truetype(os.path.join(FONT_DIR, "Montserrat-Bold.ttf"), 45)
+        font_path = os.path.join(FONT_DIR, "Montserrat-SemiBold.ttf")
+        font_default = ImageFont.truetype(font_path, 25)
+        
     except IOError:
-        font_course_id = font_name = font_date = font_date_implement = ImageFont.load_default()
+        font_default = font_big = ImageFont.load_default()
 
-    draw.text((542, 678), f"{data['courseid']}", fill="white", font=font_course_id)
-    draw.text((513, 835), f"{data['name']}", fill=(31, 142, 126), font=font_name)
-    draw.text((513, 1255), f"{format_date(data['startdate'])} - {format_date(data['enddate'])}", fill="black", font=font_date_implement)
+    # Insert data ke posisi yang sesuai
+    draw.text((1005, 454), data["no_sertifikat"], font=font_default, fill="black")
+    draw.text((415, 502), data["name"], font=font_default, fill="black")
+    draw.text((415, 536), data["student_id"], font=font_default, fill="black")
+    draw.text((1225, 502), data["department"], font=font_default, fill="black")
+    draw.text((1225, 536), data["test_date"], font=font_default, fill="black")
 
-    try:
-        expiry = datetime.strptime(data['enddate'], "%Y-%m-%d") + timedelta(days=3*365)
-        expiry_text = f"Berlaku hingga {expiry.strftime('%d %B %Y')}"
-    except ValueError:
-        expiry_text = "Berlaku hingga: -"
+    draw.text((640, 655), str(data["listening"]), font=font_default, fill="black")
+    draw.text((980, 655), str(data["reading"]), font=font_default, fill="black")
+    draw.text((1310, 655), str(data["total_lr"]), font=font_default, fill="black")
 
-    draw.text((1875, 1550), expiry_text, fill="black", font=font_date)
-    img.paste(qr_img, (1990, 1270))
+    draw.text((830, 948), str(data["writing"]), font=font_default, fill="black")
+    draw.text((1130, 948), str(data["total_writing"]), font=font_default, fill="black")
 
-    # Simpan ke buffer dan encode base64
+    img.paste(qr_img, (880, 1090), qr_img)
+
+    # Simpan hasil sertifikat ke buffer base64
     cert_buffer = io.BytesIO()
     img.save(cert_buffer, format="PNG")
-    cert_base64 = base64.b64encode(cert_buffer.getvalue()).decode("utf-8")
+    cert_base64 = base64.b64encode(cert_buffer.getvalue()).decode()
 
     # Simpan ke database
     save_certificate_data(
         certificate_id=certificate_id,
-        contract_address = contract.address,
+        contract_address=contract_address,
         encrypted_info=encrypted_info,
         qr_base64=qr_base64,
         cert_base64=cert_base64

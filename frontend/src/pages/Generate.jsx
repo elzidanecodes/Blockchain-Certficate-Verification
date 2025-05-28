@@ -1,64 +1,131 @@
 import { useState } from "react";
+import Swal from "sweetalert2";
 
 const Generate = () => {
   const [form, setForm] = useState({
+    no_sertifikat: "",
     name: "",
-    email: "",
-    phone: "",
-    coursename: "",
-    courseid: "",
-    institution: "",
-    startdate: "",
-    enddate: "",
+    student_id: "",
+    department: "",
+    test_date: "",
+    listening: "",
+    reading: "",
+    writing: "",
   });
+
+  const [errors, setErrors] = useState({});
   const [certificateUrl, setCertificateUrl] = useState("");
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    Object.entries(form).forEach(([key, value]) => {
+      if (!value) {
+        newErrors[key] = "Wajib diisi";
+      } else if (
+        ["listening", "reading", "writing"].includes(key) &&
+        isNaN(value)
+      ) {
+        newErrors[key] = "Harus berupa angka";
+      }
+    });
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleGenerate = async () => {
+    if (!validateForm()) {
+      Swal.fire({
+        icon: "error",
+        title: "Form Belum Lengkap",
+        text: "Harap isi semua field yang dibutuhkan dengan benar.",
+        confirmButtonColor: "#DF0404",
+      });
+      return;
+    }
+
+    const total_lr =
+      parseInt(form.listening || 0) + parseInt(form.reading || 0);
+    const total_writing = parseInt(form.writing || 0);
+
+    const dataToSend = {
+      ...form,
+      total_lr,
+      total_writing,
+    };
+
     const response = await fetch(
       "http://localhost:5000/certificate/generate_certificate",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(dataToSend),
       }
     );
+
     const data = await response.json();
     if (data.download_url) {
       setCertificateUrl(`http://localhost:5000${data.download_url}`);
+      Swal.fire({
+        icon: "success",
+        title: "Sertifikat Berhasil Dibuat",
+        text: "Silakan download sertifikat Anda.",
+        confirmButtonColor: "#00B140",
+      });
+    } else if (data.error) {
+      Swal.fire({
+        icon: "error",
+        title: "Gagal Generate",
+        text: data.error,
+      });
     }
   };
+
+  const fields = [
+    { label: "No Sertifikat", name: "no_sertifikat" },
+    { label: "Nama", name: "name" },
+    { label: "Student ID", name: "student_id" },
+    { label: "Department", name: "department" },
+    { label: "Test Date", name: "test_date", type: "date" },
+    { label: "Listening", name: "listening", type: "number" },
+    { label: "Reading", name: "reading", type: "number" },
+    { label: "Writing", name: "writing", type: "number" },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen px-14 py-7 dark:bg-gray-900 dark:text-white overflow-y-auto">
       <h2 className="text-[50px] font-bold text-blue-dark mb-4">
-        Generate Sertifikat
+        Generate Sertifikat PECT
       </h2>
       <div className="bg-white rounded-30 shadow-md grid grid-cols-1 md:grid-cols-2 gap-10 px-4 py-2 dark:bg-gray-800 dark:text-white">
         <div className="space-y-4 px-8 py-6">
-          {[
-            { label: "Nama", name: "name" },
-            { label: "Email", name: "email" },
-            { label: "No HP", name: "phone" },
-            { label: "Nama Kursus", name: "coursename" },
-            { label: "Course ID", name: "courseid" },
-            { label: "Asal Kampus dan Kota", name: "institution" },
-            { label: "Tanggal Mulai", name: "startdate", type: "date" },
-            { label: "Tanggal Selesai", name: "enddate", type: "date" },
-          ].map((item) => (
+          {fields.map((item) => (
             <div key={item.name}>
-              <label className="text-sm text-gray-dark dark:text-gray-500">{item.label}</label>
+              <label className="text-sm text-gray-dark dark:text-gray-500">
+                {item.label}
+              </label>
               <input
                 type={item.type || "text"}
                 name={item.name}
                 value={form[item.name]}
                 onChange={handleChange}
-                className="w-full mt-1 border border-gray-light rounded-5 px-3 py-2 focus:outline-none focus:border-blue dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                placeholder={`Masukkan ${item.label.toLowerCase()}`}
+                className={`w-full mt-1 border px-3 py-2 rounded-5 focus:outline-none ${
+                  errors[item.name]
+                    ? "border-red-dark"
+                    : "border-gray-light dark:border-gray-600"
+                } dark:bg-gray-800 dark:text-white`}
+                placeholder={`Masukkan ${item.label}`}
               />
+              {errors[item.name] && (
+                <p className="text-red-dark text-sm mt-1">
+                  {errors[item.name]}
+                </p>
+              )}
             </div>
           ))}
 

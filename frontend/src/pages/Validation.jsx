@@ -302,24 +302,22 @@ const Validation = () => {
                 )}
               </li>
               <li>
-                <strong>Cert ID:</strong> {result.certificate_id}
+                <strong>Certificate ID:</strong> {result.certificate_id}
+              </li>
+              <li>
+                <strong>No Sertifikat:</strong> {result.no_sertifikat}
               </li>
               <li>
                 <strong>Nama:</strong> {result.name}
               </li>
               <li>
-                <strong>Course ID:</strong> {result.course_id}
+                <strong>Student ID:</strong> {result.student_id}
               </li>
               <li>
-                <strong>Periode:</strong> {result.start_date} –{" "}
-                {result.end_date}
+                <strong>Department:</strong> {result.department}
               </li>
               <li>
-                <strong>Diverifikasi Pada:</strong>{" "}
-                {new Date(result.verified_at).toLocaleString("id-ID", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
+                <strong>Tanggal Tes:</strong> {result.test_date}
               </li>
               <li>
                 <strong>Hash MD5:</strong> {result.hash}
