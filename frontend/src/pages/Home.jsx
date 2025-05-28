@@ -24,7 +24,7 @@ const Home = () => {
         <div className="flex flex-col md:flex-row justify-between items-start gap-6 px-6 py-4">
           <div className="flex-1 max-w-[700px]">
             <h2 className="text-[50px] font-bold text-blue-dark mb-4">
-              Welcome to CertGuard
+              Selamat Datang di CertGuard
             </h2>
             <h4 className="text-[30px] font-semibold text-gray-900 mb-4 dark:text-blue-light">
               Lindungi dan Verifikasi Sertifikat Digital Anda dengan Teknologi

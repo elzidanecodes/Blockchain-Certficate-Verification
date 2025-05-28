@@ -148,12 +148,14 @@ const Generate = () => {
           </div>
         </div>
 
-        <div className="hidden md:flex justify-center items-center">
-          <img
-            src="/generate.png"
-            alt="Generate Illustration"
-            className="max-w-[800px]"
-          />
+        <div className="hidden md:flex justify-center items-center p-4">
+          <div className="w-full max-w-[800px] aspect-[4/3] overflow-hidden">
+            <iframe
+              src="https://lottie.host/embed/8dd7ef03-638c-45d8-b824-72b60af952bf/o4i0xm2aiE.lottie"
+              className="w-full h-full"
+              allowFullScreen
+            ></iframe>
+          </div>
         </div>
       </div>
     </div>

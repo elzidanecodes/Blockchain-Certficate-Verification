@@ -336,14 +336,33 @@ const Validation = () => {
         </div>
       )}
       {result && !result.image_base64 && (
-        <div className="bg-white shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-6 py-6">
-          <div className="flex flex-col items-start px-6">
-            <h3 className="font-semibold text-2xl mb-4 text-blue-dark">
-              Hasil Verifikasi Sertifikat
-            </h3>
-            <p className="text-red-dark font-bold">
-              Sertifikat tidak valid atau data tidak sesuai.
+        <div className="bg-red-50 shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-8 py-8 border border-red-200">
+          <div className="flex flex-col justify-center items-start px-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-red-200 p-3 rounded-50 animate-pulse">
+                <Icon
+                  name="close"
+                  className="w-[24px] h-[24px] text-red-dark"
+                />
+              </div>
+              <h3 className="font-bold text-2xl text-red-700">
+                Sertifikat Tidak Valid
+              </h3>
+            </div>
+            <p className="text-red-dark text-sm">
+              Gambar yang Anda unggah tidak cocok dengan data yang disimpan di
+              blockchain. Pastikan Anda menggunakan gambar sertifikat asli tanpa
+              modifikasi.
             </p>
+          </div>
+          <div className="flex justify-center items-center p-4">
+            <div className="w-full max-w-[200px] aspect-square overflow-hidden ">
+              <iframe
+                src="https://lottie.host/embed/07456d93-dbf7-4796-a38b-fc36b27605f1/nVMOALJJDT.lottie"
+                className="w-full h-full"
+                allowFullScreen
+              ></iframe>
+            </div>
           </div>
         </div>
       )}

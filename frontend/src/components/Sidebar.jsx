@@ -83,6 +83,8 @@ const Sidebar = () => {
         ))}
       </nav>
 
+      <div className="border-b border-gray-300 dark:border-gray-600 mb-4"></div>
+
       {/* Dark Mode Toggle */}
       <div className="mt-auto flex items-center justify-between px-2">
         {isOpen && (
