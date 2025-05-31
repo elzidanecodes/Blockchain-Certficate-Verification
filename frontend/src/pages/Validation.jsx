@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useParams } from "react-router-dom";
 import Icon from "../icons/Icon";
 import CircularProgress from "../components/CircularProgress";
 import Swal from "sweetalert2";
@@ -12,6 +13,7 @@ const Validation = () => {
   const [durations, setDurations] = useState({});
   const fileInputRef = useRef(null);
   const controllerRef = useRef(null);
+  const { certificate_id } = useParams(); // dari QR
 
   const handleReset = () => {
     if (controllerRef.current) {
@@ -101,6 +103,42 @@ const Validation = () => {
       }
     }
   };
+
+  useEffect(() => {
+    if (!certificate_id) return;
+
+    // Mode scan QR: langsung fetch data dari backend
+    fetch(`http://localhost:5173/api/verify/${certificate_id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Sertifikat belum diverifikasi.");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.valid) {
+          setResult({
+            ...data,
+            image_base64: null,
+            source: "qr",
+          });
+          setCompletedSteps([0, 1, 2, 3, 4]); // tandai selesai semua
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Sertifikat Tidak Valid",
+            text: data.message,
+          });
+        }
+      })
+      .catch((err) => {
+        Swal.fire({
+          icon: "error",
+          title: "Gagal Memuat Data",
+          text: err.message,
+          source: "qr",
+          message: "Sertifikat ini belum diverifikasi atau tidak ditemukan.",
+        });
+      });
+  }, [certificate_id]);
 
   const steps = [
     "Unggah File",
@@ -260,7 +298,7 @@ const Validation = () => {
 
       {/* Hasil */}
       {result && result.image_base64 && (
-        <div className="bg-white shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-4 py-8 dark:bg-gray-800 dark:text-white">
+        <div className="bg-green-light shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-4 py-8 border border-green-dark dark:bg-gray-800 dark:text-white">
           <div className="flex flex-col items-start px-6">
             <h3 className="font-semibold text-2xl mb-4 text-blue-dark">
               Hasil Verifikasi Sertifikat
@@ -363,6 +401,76 @@ const Validation = () => {
                 allowFullScreen
               ></iframe>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hasil Scan QRcode */}
+      {result && !result.image_base64 && result.source === "qr" && result.valid && (
+        <div className="bg-green-light shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-4 py-8 border border-green-dark dark:bg-gray-800 dark:text-white">
+          <div className="flex flex-col items-start px-6">
+            <h3 className="font-semibold text-2xl mb-4 text-blue-dark">
+              Hasil Verifikasi Sertifikat
+            </h3>
+            <img
+              src={`https://ipfs.io/ipfs/${result.ipfs_cid}`}
+              alt="Verified"
+              className="rounded-10 md: w-[500px] lg:w-[688px] h-auto"
+            />
+            <a
+              href={`https://ipfs.io/ipfs/${result.ipfs_cid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-block bg-blue-100 border-2 border-blue-600 text-blue-800 rounded-10 md:px-4 py-2 lg:px-2 hover:bg-blue-600 hover:text-white transition duration-300"
+            >
+              Lihat di IPFS
+            </a>
+          </div>
+          <div className="flex flex-col items-start px-6 py-6">
+            <h3 className="font-semibold text-lg mb-4 text-blue-dark ">
+              Detail Sertifikat
+            </h3>
+            <ul className="text-sm space-y-4">
+              <li className="flex items-center gap-2">
+                <strong>Status:</strong>
+                <span className="flex items-center gap-2 text-green-success font-medium">
+                  <span className="bg-green-success text-white rounded-50">
+                    <Icon name="checklist" className="w-[15px] h-[15px]" />
+                  </span>
+                  Sertifikat valid!
+                </span>
+              </li>
+              <li>
+                <strong>Certificate ID:</strong> {result.certificate_id}
+              </li>
+              <li>
+                <strong>No Sertifikat:</strong> {result.no_sertifikat}
+              </li>
+              <li>
+                <strong>Nama:</strong> {result.name}
+              </li>
+              <li>
+                <strong>Student ID:</strong> {result.student_id}
+              </li>
+              <li>
+                <strong>Department:</strong> {result.department}
+              </li>
+              <li>
+                <strong>Tanggal Tes:</strong> {result.test_date}
+              </li>
+              <li>
+                <strong>Hash MD5:</strong> {result.hash}
+              </li>
+              <li className="flex items-center gap-2">
+                <strong>Signature:</strong>
+                <span className="flex items-center gap-2 text-green-success font-medium">
+                  <span className="bg-green-success text-white rounded-50">
+                    <Icon name="checklist" className="w-[15px] h-[15px]" />
+                  </span>
+                  Diverifikasi oleh RSA Signature
+                </span>
+              </li>
+            </ul>
           </div>
         </div>
       )}

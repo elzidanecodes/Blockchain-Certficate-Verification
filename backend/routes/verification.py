@@ -11,11 +11,15 @@ from PIL import Image
 from datetime import datetime
 from pyzbar.pyzbar import decode
 from urllib.parse import urlparse, parse_qs
-from config import contract
+from flask import session
+from config import contract, AES_SECRET_KEY
 from crypto.hash_utils import generate_md5_hash
 from crypto.rsa_utils import verify_signature
-from database.mongo import get_certificate_by_id, save_verification_result
+from database.mongo import get_certificate_by_id, save_audit_log, collection_verify_logs
 from routes.blockchain import get_certificate_data
+from certificate import regenerate_verified_certificate
+from crypto.aes_utils import decrypt_data
+from ipfs.ipfs_utils import upload_to_ipfs
 
 verification_bp = Blueprint("verification", __name__)
 reader = easyocr.Reader(['en', 'id'], gpu=False)
@@ -160,14 +164,34 @@ def verify():
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        
+        if rsa_valid:
+            # 🔎 Ambil data terenkripsi dari MongoDB
+            dataCert_db = get_certificate_by_id(certificate_id)
+            encrypted_info = dataCert_db.get("encrypted_data_sertif")
+            if not encrypted_info:
+                return jsonify({"error": "Data sertifikat tidak ditemukan di database"}), 404
+            
+            decrypted_data = decrypt_data(encrypted_info, AES_SECRET_KEY)
+            if not decrypted_data:
+                return jsonify({"error": "Gagal mendekripsi data sertifikat"}), 500
+            #
+            img_bytes, img_base64, qr_base64 = regenerate_verified_certificate(decrypted_data, certificate_id)
+            # Upload sertifikat hasil verifikasi ke IPFS
+            ipfs_cid = upload_to_ipfs(img_bytes)
+            print("✅ Uploaded to IPFS with CID:", ipfs_cid)
 
-        save_verification_result({
+        save_audit_log({
             "certificate_id": certificate_id,
-            "contract_address": contract.address,
-            "image_base64": img_base64,
+            "ipfs_cid": ipfs_cid,
+            "qr_code": qr_base64,
             "hash": hash_ulang,
-            "valid": rsa_valid
+            "verified_by": session.get("username", "admin"),
+            "valid": rsa_valid,
+            "result": "success" if rsa_valid else "failed",
+            "note": "Sertifikat berhasil diverifikasi" if rsa_valid else "Verifikasi gagal"
         })
+
 
         return jsonify({
             "message": "Verifikasi selesai",
@@ -186,6 +210,27 @@ def verify():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+# 
+@verification_bp.route("/api/verify/<certificate_id>")
+def api_verify_certificate(certificate_id):
+    log = collection_verify_logs.find_one({"certificate_id": certificate_id})
+    if not log or not log.get("valid", False):
+        return jsonify({"valid": False, "message": "Sertifikat belum diverifikasi"}), 404
+
+    cert_data = get_certificate_by_id(certificate_id)
+    return jsonify({
+        "valid": True,
+        "certificate_id": certificate_id,
+        "name": cert_data.get("name"),
+        "student_id": cert_data.get("student_id"),
+        "department": cert_data.get("department"),
+        "no_sertifikat": cert_data.get("no_sertifikat"),
+        "test_date": cert_data.get("test_date"),
+        "hash": log.get("hash"),
+        "verified_at": log.get("timestamp").strftime("%Y-%m-%d"),
+        "ipfs_url": f"https://ipfs.io/ipfs/{log.get('ipfs_cid')}"
+    })
     
 @verification_bp.route("/get_verified_image/<certificate_id>", methods=["GET"])
 def get_verified_image(certificate_id):

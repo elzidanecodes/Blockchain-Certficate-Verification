@@ -12,6 +12,7 @@ import Validation from "./pages/Validation";
 function App() {
   return (
     <Router>
+      <Route path="/verify/:certificate_id" element={<Validation />} />
       <div className="flex">
         <Sidebar />
         <div className="flex-1 bg-default h-full dark:bg-gray-900 overflow-y-auto select-none cursor-default">

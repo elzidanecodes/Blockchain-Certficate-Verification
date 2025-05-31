@@ -119,12 +119,70 @@ def generate_certificate(data):
     save_certificate_data(
         certificate_id=certificate_id,
         contract_address=contract_address,
-        encrypted_info=encrypted_info,
+        encrypted_data_sertif=encrypted_info,
         qr_base64=qr_base64,
         cert_base64=cert_base64
     )
 
     return certificate_id
+
+# Regenerate sertifikat terverifikasi
+def regenerate_verified_certificate(data, certificate_id):
+    # Load template
+    if not os.path.exists(TEMPLATE_PATH):
+        raise FileNotFoundError("Template sertifikat tidak ditemukan")
+
+    img = Image.open(TEMPLATE_PATH).convert("RGBA")
+    draw = ImageDraw.Draw(img)
+
+    # Load font
+    try:
+        font_path = os.path.join(FONT_DIR, "Montserrat-SemiBold.ttf")
+        font = ImageFont.truetype(font_path, 25)
+    except:
+        font = ImageFont.load_default()
+
+    # 🖊️ Tulis ulang seluruh data
+    draw.text((1005, 454), data["no_sertifikat"], font=font, fill="black")
+    draw.text((415, 502), data["name"], font=font, fill="black")
+    draw.text((415, 536), data["student_id"], font=font, fill="black")
+    draw.text((1225, 502), data["department"], font=font, fill="black")
+    draw.text((1225, 536), data["test_date"], font=font, fill="black")
+
+    draw.text((640, 655), str(data["listening"]), font=font, fill="black")
+    draw.text((980, 655), str(data["reading"]), font=font, fill="black")
+    draw.text((1310, 655), str(data["total_lr"]), font=font, fill="black")
+    draw.text((830, 948), str(data["writing"]), font=font, fill="black")
+    draw.text((1130, 948), str(data["total_writing"]), font=font, fill="black")
+
+    # Generate QR final → link publik
+    qr_data = f"http://localhost:5173/verify/{certificate_id}"
+    qr_img = qrcode.make(qr_data).convert("RGBA").resize((200, 200))
+
+    # Transparan background putih
+    datas = qr_img.getdata()
+    newData = []
+    for item in datas:
+        if item[:3] == (255, 255, 255):
+            newData.append((255, 255, 255, 0))
+        else:
+            newData.append(item)
+    qr_img.putdata(newData)
+
+    img.paste(qr_img, (880, 1090), qr_img)
+
+    # Simpan gambar ke buffer
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    img_bytes = buffer.getvalue()
+    img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+
+    # QR juga ke base64 untuk disimpan
+    qr_buffer = io.BytesIO()
+    qr_img.save(qr_buffer, format="PNG")
+    qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode("utf-8")
+
+    return img_bytes, img_base64, qr_base64
 
 @certificate_bp.route("/generate_certificate", methods=["POST"])
 def generate():
