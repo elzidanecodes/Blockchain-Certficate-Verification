@@ -3,9 +3,10 @@ import io
 import base64
 import os
 import qrcode
-from datetime import datetime, timedelta
+from PIL import ImageFont
+from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-from config import web3, contract, AES_SECRET_KEY
+from config import contract, AES_SECRET_KEY
 from database.mongo import save_certificate_data, get_certificate_by_id
 from crypto.hash_utils import generate_md5_hash
 from crypto.rsa_utils import load_private_key, sign_data
@@ -31,7 +32,6 @@ def get_certificate_id_from_blockchain():
     return contract.functions.certificateCounter().call()
 
 def generate_certificate(data):
-    from PIL import ImageFont
 
     # Validasi input
     required_fields = [

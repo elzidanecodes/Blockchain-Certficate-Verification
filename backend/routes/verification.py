@@ -11,10 +11,11 @@ from PIL import Image
 from datetime import datetime
 from pyzbar.pyzbar import decode
 from urllib.parse import urlparse, parse_qs
-from config import web3, contract
+from config import contract
 from crypto.hash_utils import generate_md5_hash
 from crypto.rsa_utils import verify_signature
 from database.mongo import get_certificate_by_id, save_verification_result
+from routes.blockchain import get_certificate_data
 
 verification_bp = Blueprint("verification", __name__)
 reader = easyocr.Reader(['en', 'id'], gpu=False)
@@ -136,7 +137,8 @@ def verify():
         print("🔍 Hash input:", hash_input)
 
         # Ambil signature dari blockchain
-        valid, cert_id, blockchain_signature_b64 = contract.functions.getCertificate(certificate_id).call()
+        valid, cert_id, blockchain_signature_b64 = get_certificate_data(certificate_id)
+        
         if not valid:
             return jsonify({"error": "Certificate ID tidak ditemukan di blockchain"}), 404
 
