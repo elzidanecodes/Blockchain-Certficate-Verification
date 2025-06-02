@@ -206,6 +206,7 @@ def verify():
 
         save_audit_log({
             "certificate_id": certificate_id,
+            "no_sertifikat": no_sertif,
             "contract_address": contract_address,
             "ipfs_cid": ipfs_cid,
             "ipfs_url": ipfs_url,
