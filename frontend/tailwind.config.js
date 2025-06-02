@@ -12,10 +12,13 @@ module.exports = {
   theme: {
     colors: {
       "default": "#F9FDFF",
-      "blue-dark": "#197BBD",
+      "blue-dark": "#237FEA",
+      "blue-aqua": "#08C7E1",
       "blue-light": "#E4F0FF",
       "red-dark": "#DF0404",
       "red-light": "#FFC5C5",
+      "orange": "#FF7E54",
+      "black": "#01120A",
       "purple": "#7e5bef",
       "pink": "#ff49db",
       "orange": "#ff7849",

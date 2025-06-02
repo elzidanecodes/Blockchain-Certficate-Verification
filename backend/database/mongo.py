@@ -18,11 +18,11 @@ collection_cert.create_index(
     unique=True
 )
 
-def save_certificate_data(certificate_id, contract_address, encrypted_info, qr_base64, cert_base64):
+def save_certificate_data(certificate_id, contract_address, encrypted_data_sertif, qr_base64, cert_base64):
     data = {
         "certificate_id": certificate_id,
         "contract_address": contract_address,
-        "encrypted_user_info": encrypted_info,
+        "encrypted_data_sertif": encrypted_data_sertif,
         "qr_code_png": qr_base64,
         "certificate_png": cert_base64,
         "created_at": datetime.utcnow()

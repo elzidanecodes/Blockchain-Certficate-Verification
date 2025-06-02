@@ -9,6 +9,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 GANACHE_URL = os.getenv("GANACHE_URL")
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
 AES_SECRET_KEY = os.getenv("AES_SECRET_KEY")
+GATEWAY_URL = os.getenv("GATEWAY_URL")
+IPFS_API = os.getenv("IPFS_API")
 web3 = Web3(Web3.HTTPProvider(GANACHE_URL))
 
 # Cek koneksi ke blockchain

@@ -17,7 +17,7 @@ from crypto.hash_utils import generate_md5_hash
 from crypto.rsa_utils import verify_signature
 from database.mongo import get_certificate_by_id, save_audit_log, collection_verify_logs
 from routes.blockchain import get_certificate_data
-from certificate import regenerate_verified_certificate
+from routes.certificate import regenerate_verified_certificate
 from crypto.aes_utils import decrypt_data
 from ipfs.ipfs_utils import upload_to_ipfs
 
@@ -164,10 +164,11 @@ def verify():
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        contract_address = contract.address
         
         if rsa_valid:
             # 🔎 Ambil data terenkripsi dari MongoDB
-            dataCert_db = get_certificate_by_id(certificate_id)
+            dataCert_db = get_certificate_by_id(certificate_id, contract_address)
             encrypted_info = dataCert_db.get("encrypted_data_sertif")
             if not encrypted_info:
                 return jsonify({"error": "Data sertifikat tidak ditemukan di database"}), 404
@@ -175,15 +176,26 @@ def verify():
             decrypted_data = decrypt_data(encrypted_info, AES_SECRET_KEY)
             if not decrypted_data:
                 return jsonify({"error": "Gagal mendekripsi data sertifikat"}), 500
-            #
+            
             img_bytes, img_base64, qr_base64 = regenerate_verified_certificate(decrypted_data, certificate_id)
             # Upload sertifikat hasil verifikasi ke IPFS
-            ipfs_cid = upload_to_ipfs(img_bytes)
-            print("✅ Uploaded to IPFS with CID:", ipfs_cid)
+            
+            ipfs_result = upload_to_ipfs(img_bytes)
+
+            if ipfs_result:
+                ipfs_cid = ipfs_result.get("cid")
+                ipfs_url = ipfs_result.get("url")
+                print("✅ Uploaded to IPFS with CID:", ipfs_cid)
+            else:
+                ipfs_cid = None
+                ipfs_url = None
+                print("❌ Gagal upload ke IPFS")
 
         save_audit_log({
             "certificate_id": certificate_id,
+            "contract_address": contract_address,
             "ipfs_cid": ipfs_cid,
+            "ipfs_url": ipfs_url,
             "qr_code": qr_base64,
             "hash": hash_ulang,
             "verified_by": session.get("username", "admin"),
@@ -193,11 +205,13 @@ def verify():
         })
 
 
+
         return jsonify({
             "message": "Verifikasi selesai",
             "certificate_id": certificate_id,
             "valid": rsa_valid,
             "image_base64": img_base64,
+            "ipfs_url": ipfs_url,
             "hash": hash_ulang,
             "name": name,
             "student_id": student_id,
@@ -211,25 +225,31 @@ def verify():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# 
+# Endpoint untuk API verifikasi sertifikat 
 @verification_bp.route("/api/verify/<certificate_id>")
 def api_verify_certificate(certificate_id):
-    log = collection_verify_logs.find_one({"certificate_id": certificate_id})
+    print("🔍 incoming certificate_id:", certificate_id)
+    log = collection_verify_logs.find_one({
+        "certificate_id": {"$regex": f"^{certificate_id}$", "$options": "i"}
+    })
     if not log or not log.get("valid", False):
         return jsonify({"valid": False, "message": "Sertifikat belum diverifikasi"}), 404
 
-    cert_data = get_certificate_by_id(certificate_id)
+    contract_address = log.get("contract_address") or contract.address
+    cert_data = get_certificate_by_id(certificate_id, contract_address)
+
     return jsonify({
         "valid": True,
         "certificate_id": certificate_id,
-        "name": cert_data.get("name"),
-        "student_id": cert_data.get("student_id"),
-        "department": cert_data.get("department"),
-        "no_sertifikat": cert_data.get("no_sertifikat"),
-        "test_date": cert_data.get("test_date"),
+        "name": log.get("name"),
+        "student_id": log.get("student_id"),
+        "department": log.get("department"),
+        "no_sertifikat": log.get("no_sertifikat"),
+        "test_date": log.get("test_date"),
         "hash": log.get("hash"),
+        "ipfs_cid": log.get("ipfs_cid"),
+        "ipfs_url": log.get("ipfs_url"),
         "verified_at": log.get("timestamp").strftime("%Y-%m-%d"),
-        "ipfs_url": f"https://ipfs.io/ipfs/{log.get('ipfs_cid')}"
     })
     
 @verification_bp.route("/get_verified_image/<certificate_id>", methods=["GET"])

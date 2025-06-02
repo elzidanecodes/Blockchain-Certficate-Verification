@@ -14,12 +14,6 @@ const ActivityTable = () => {
   const startIdx = (currentPage - 1) * itemsPerPage + 1;
   const endIdx = Math.min(currentPage * itemsPerPage, totalData);
   const currentItems = filteredActivities.slice(startIdx - 1, endIdx);
-  
-  // Calculate total certificates and verified certificates cardstat
-  const totalCertificates = activities.length;
-  const totalVerified = activities.filter(
-    (row) => row.verified_at !== null
-  ).length;
 
   useEffect(() => {
     const fetchData = async () => {

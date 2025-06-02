@@ -44,6 +44,7 @@ def generate_certificate(data):
 
     # Format hash input
     hash_input = f"{data['no_sertifikat']}|{data['name']}|{data['student_id']}"
+    print("📌 HASH input saat generate:", hash_input)
     md5_hash = generate_md5_hash(hash_input)
 
     # Digital signature
@@ -170,12 +171,18 @@ def regenerate_verified_certificate(data, certificate_id):
     qr_img.putdata(newData)
 
     img.paste(qr_img, (880, 1090), qr_img)
+    
+    ttd_img = Image.open("static/ttd.png").convert("RGBA").resize((250, 100))
+    img.paste(ttd_img, (350, 1140), ttd_img)
+    img.paste(ttd_img, (1400, 1140), ttd_img)
 
     # Simpan gambar ke buffer
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     img_bytes = buffer.getvalue()
     img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+    
+    
 
     # QR juga ke base64 untuk disimpan
     qr_buffer = io.BytesIO()
