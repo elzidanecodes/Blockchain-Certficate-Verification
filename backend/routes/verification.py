@@ -123,6 +123,19 @@ def verify():
         certificate_id = extract_certificate_id_from_qr(img_np)
         if not certificate_id:
             return jsonify({"error": "QR Code tidak valid"}), 400
+        
+        # ❗️ Cek apakah sudah diverifikasi sebelumnya
+        existing_log = collection_verify_logs.find_one({
+            "certificate_id": {"$regex": f"^{certificate_id}$", "$options": "i"},
+            "valid": True
+        })
+        if existing_log:
+            return jsonify({
+                "already_verified": True,
+                "certificate_id": certificate_id,
+                "note": existing_log.get("note", "Sertifikat ini sudah diverifikasi sebelumnya."),
+                "verified_at": existing_log.get("timestamp").strftime("%Y-%m-%d %H:%M:%S"),
+            }), 200
 
         # OCR
         results = reader.readtext(img_np, detail=0)
@@ -236,7 +249,6 @@ def api_verify_certificate(certificate_id):
         return jsonify({"valid": False, "message": "Sertifikat belum diverifikasi"}), 404
 
     contract_address = log.get("contract_address") or contract.address
-    cert_data = get_certificate_by_id(certificate_id, contract_address)
 
     return jsonify({
         "valid": True,
@@ -250,6 +262,7 @@ def api_verify_certificate(certificate_id):
         "ipfs_cid": log.get("ipfs_cid"),
         "ipfs_url": log.get("ipfs_url"),
         "verified_at": log.get("timestamp").strftime("%Y-%m-%d"),
+        "note": log.get("note", "")
     })
     
 @verification_bp.route("/get_verified_image/<certificate_id>", methods=["GET"])
