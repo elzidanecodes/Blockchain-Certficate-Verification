@@ -65,7 +65,7 @@ const Home = () => {
 
   return (
     <div className="space-y-6 px-14 py-7 pb-8 dark:bg-gray-900 min-h-screen overflow-y-auto ">
-      <div className="bg-blue-dark rounded-30 flex flex-col md:flex-row justify-start items-center gap-20 px-24 py-12">
+      <div className="bg-blue-dark rounded-30 flex flex-col md:flex-row justify-start items-center gap-24 px-24 py-12">
         <div className=" flex-1 max-w-[700px]">
           <h2 className="text-[50px] font-bold text-white mb-4">
             Selamat Datang di CekSertif

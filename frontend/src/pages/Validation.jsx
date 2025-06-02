@@ -46,22 +46,41 @@ const Validation = () => {
     formData.append("file", image);
 
     try {
-      const response = await fetch(
-        "http://localhost:5000/verification/verify_certificate",
-        {
-          method: "POST",
-          body: formData,
-          signal: controllerRef.current.signal,
-        }
-      );
+      const response = await fetch("http://localhost:5000/verify_certificate", {
+        method: "POST",
+        body: formData,
+        signal: controllerRef.current.signal,
+      });
 
       const data = await response.json();
+
+      if (data.already_verified) {
+        Swal.fire({
+          icon: "info",
+          title: "Sudah Diverifikasi",
+          text: `${"Sertifikat ini sudah diverifikasi sebelumnya pada"} (${data.verified_at })`,
+          confirmButtonColor: "#3085d6",
+          confirmButtonText: "OK",
+        }).then(() => {
+          handleReset();
+        });
+        return;
+      }
+
       setResult({
         ...data,
         source: "upload",
       });
 
-      if (!data.valid) {
+      if (data.valid) {
+        Swal.fire({
+          icon: "success",
+          title: "Sertifikat Valid",
+          text: data.note || "Sertifikat berhasil diverifikasi.",
+          confirmButtonColor: "#3085d6",
+          confirmButtonText: "OK",
+        });
+      } else {
         Swal.fire({
           icon: "error",
           title: "Verifikasi Gagal",
@@ -124,6 +143,14 @@ const Validation = () => {
             source: "qr",
           });
           setCompletedSteps([0, 1, 2, 3, 4]);
+
+          Swal.fire({
+            icon: "success",
+            title: "Sertifikat Valid",
+            text: data.note || "Sertifikat telah diverifikasi.",
+            confirmButtonColor: "#3085d6",
+            confirmButtonText: "OK",
+          });
         } else {
           Swal.fire({
             icon: "error",
