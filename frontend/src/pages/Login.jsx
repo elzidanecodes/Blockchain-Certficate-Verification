@@ -104,13 +104,13 @@ export default function Login() {
               <input type="checkbox" className="form-checkbox rounded-5" />{" "}
               Ingat saya
             </label>
-            <a href="#" className="text-blue-600 hover:underline">
+            <a href="#" className="text-blue-dark hover:underline">
               Lupa kata sandi?
             </a>
           </div>
           <button
             type="submit"
-            className="w-full py-4 bg-blue-600 text-white rounded-10 hover:bg-blue-700 transition"
+            className="w-full py-4 bg-blue-dark text-white rounded-10 hover:bg-blue-700 transition"
           >
             Masuk
           </button>
@@ -118,12 +118,12 @@ export default function Login() {
 
         <p className="mt-10 text-base text-center text-gray-500">
           Belum punya akun?{" "}
-          <a href="#" className="text-blue-600 hover:underline">
+          <a href="#" className="text-blue-dark hover:underline">
             Hubungi administrator.
           </a>
         </p>
       </div>
-      <div className="hidden md:flex w-1/2 items-center justify-center bg-blue-600 text-white p-6 md:p-10 lg:p-16 xl:p-24">
+      <div className="hidden md:flex w-1/2 items-center justify-center bg-blue-dark text-white p-6 md:p-10 lg:p-16 xl:p-24">
         <div className="text-center w-full max-w-2xl">
           <img
             src="/blockchain-illustration.png"

@@ -6,7 +6,7 @@ from routes.blockchain import blockchain_bp
 from routes.verification import verification_bp
 from routes.frontend import frontend_bp
 from crypto.rsa_utils import generate_rsa_keys
-from routes.auth import auth_bp
+from database.auth import auth_bp
 
 app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
 CORS(app)

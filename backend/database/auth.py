@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from database.mongo import db
+import bcrypt
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -13,7 +14,7 @@ def login():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    if user["password"] != password:
+    if not bcrypt.checkpw(password.encode("utf-8"), user["password"].encode("utf-8")):
         return jsonify({"error": "Invalid credentials"}), 401
 
     return jsonify({
