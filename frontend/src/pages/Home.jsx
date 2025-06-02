@@ -65,10 +65,10 @@ const Home = () => {
 
   return (
     <div className="space-y-6 px-14 py-7 pb-8 dark:bg-gray-900 min-h-screen overflow-y-auto ">
-      <div className="bg-blue-dark rounded-30 flex flex-col md:flex-row justify-between items-start gap-6 px-24 py-16 ">
+      <div className="bg-blue-dark rounded-30 flex flex-col md:flex-row justify-start items-center gap-20 px-24 py-12">
         <div className=" flex-1 max-w-[700px]">
           <h2 className="text-[50px] font-bold text-white mb-4">
-            Selamat Datang di CertGuard
+            Selamat Datang di CekSertif
           </h2>
           <div className="min-h-[120px] mb-4">
             <h4 className="text-[30px] font-semibold text-white whitespace-pre-line">
@@ -84,7 +84,7 @@ const Home = () => {
         </div>
         <div className="max-w-[500px] shrink-0 self-start -mt-4">
           <img
-            src="/laptop-verifikasi.png"
+            src="/blockchain-ilustrasi-home.png"
             alt="Illustration"
             className="w-full"
           />
