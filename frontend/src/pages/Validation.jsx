@@ -58,7 +58,9 @@ const Validation = () => {
         Swal.fire({
           icon: "info",
           title: "Sudah Diverifikasi",
-          text: `${"Sertifikat ini sudah diverifikasi sebelumnya pada"} (${data.verified_at })`,
+          text: `${"Sertifikat ini sudah diverifikasi sebelumnya pada"} (${
+            data.verified_at
+          })`,
           confirmButtonColor: "#3085d6",
           confirmButtonText: "OK",
         }).then(() => {
@@ -147,7 +149,9 @@ const Validation = () => {
           Swal.fire({
             icon: "success",
             title: "Sertifikat Valid",
-            text: data.note || "Sertifikat telah diverifikasi.",
+            text: `${"Sertifikat ini telah diverifikasi pada"} (${
+              data.verified_at
+            })`,
             confirmButtonColor: "#3085d6",
             confirmButtonText: "OK",
           });
@@ -504,21 +508,22 @@ const Validation = () => {
           <div className="bg-green-50 shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-4 py-8 border border-green-200 dark:bg-gray-800 dark:text-white">
             <div className="flex flex-col items-start px-6">
               <h3 className="font-semibold text-2xl mb-4 text-blue-dark">
-                Sertikat Berhasil Diverifikasi
+                Sertikat Telah Diverifikasi Pada {result.verified_at}
               </h3>
-              <img
-                src={`${result.ipfs_url}`}
-                alt="Verified"
-                className="rounded-10 md: w-[500px] lg:w-[688px] h-auto mb-6"
-              />
-              <a
-                href={`${result.ipfs_url}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className=" inline-block bg-blue-light text-blue-dark rounded-10 border border-blue-dark md:px-4 py-2 lg:px-7 hover:bg-blue-dark hover:text-white transition duration-300"
+              <div
+                className="relative w-full rounded-10 overflow-hidden mb-6 flex justify-center"
+                onContextMenu={(e) => e.preventDefault()}
               >
-                Lihat di IPFS
-              </a>
+                <img
+                  src={result.ipfs_url}
+                  alt="Sertifikat"
+                  className={`w-full max-w-[680px] h-auto rounded-10 select-none pointer-events-none mx-auto ${
+                    localStorage.getItem("role") !== "admin" ? "blur-sm" : ""
+                  }`}
+                  onContextMenu={(e) => e.preventDefault()}
+                  draggable={false}
+                />
+              </div>
             </div>
             <div className="flex flex-col items-start px-6 py-6">
               <h3 className="font-semibold text-lg mb-4 text-blue-dark ">
@@ -539,18 +544,6 @@ const Validation = () => {
                 </li>
                 <li>
                   <strong>No Sertifikat:</strong> {result.no_sertifikat}
-                </li>
-                <li>
-                  <strong>Nama:</strong> {result.name}
-                </li>
-                <li>
-                  <strong>Student ID:</strong> {result.student_id}
-                </li>
-                <li>
-                  <strong>Department:</strong> {result.department}
-                </li>
-                <li>
-                  <strong>Tanggal Tes:</strong> {result.test_date}
                 </li>
                 <li>
                   <strong>Hash MD5:</strong> {result.hash}
