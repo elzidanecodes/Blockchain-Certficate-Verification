@@ -143,7 +143,7 @@ def regenerate_verified_certificate(data, certificate_id):
     except:
         font = ImageFont.load_default()
 
-    # 🖊️ Tulis ulang seluruh data
+    # 🖊️ Tulis ulang seluruh data ke template
     draw.text((1005, 454), data["no_sertifikat"], font=font, fill="black")
     draw.text((415, 502), data["name"], font=font, fill="black")
     draw.text((415, 536), data["student_id"], font=font, fill="black")
@@ -171,17 +171,20 @@ def regenerate_verified_certificate(data, certificate_id):
     qr_img.putdata(newData)
 
     img.paste(qr_img, (880, 1090), qr_img)
-    
-    ttd_img = Image.open("static/ttd.png").convert("RGBA").resize((250, 100))
-    img.paste(ttd_img, (350, 1140), ttd_img)
-    img.paste(ttd_img, (1400, 1140), ttd_img)
 
-    # Simpan gambar ke buffer
+    # Tambahkan tanda tangan
+    try:
+        ttd_img = Image.open("static/ttd.png").convert("RGBA").resize((250, 100))
+        img.paste(ttd_img, (350, 1140), ttd_img)
+        img.paste(ttd_img, (1400, 1140), ttd_img)
+    except Exception as e:
+        print("⚠️ Gagal pasang tanda tangan:", e)
+
+    # Simpan image ke buffer dan encode base64
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     img_bytes = buffer.getvalue()
     img_base64 = base64.b64encode(img_bytes).decode("utf-8")
-    
     
 
     # QR juga ke base64 untuk disimpan

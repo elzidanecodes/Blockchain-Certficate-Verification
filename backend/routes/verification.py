@@ -160,23 +160,6 @@ def verify():
             return jsonify({"error": "Certificate ID tidak ditemukan di blockchain"}), 404
 
         rsa_valid = verify_signature(hash_ulang, blockchain_signature_b64)
-
-        # Tambahkan label ke gambar
-        draw = ImageDraw.Draw(img)
-        font = ImageFont.load_default()
-        draw.text((100, img.height - 50), "VALID" if rsa_valid else "INVALID", fill="green" if rsa_valid else "red", font=font)
-
-        if rsa_valid:
-            try:
-                ttd_img = Image.open("static/ttd.png").convert("RGBA").resize((250, 100))
-                img.paste(ttd_img, (350, 1140), ttd_img)
-                img.paste(ttd_img, (1400, 1140), ttd_img)
-            except Exception as e:
-                print("⚠️ Gagal pasang tanda tangan:", e)
-
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
         contract_address = contract.address
         
         if rsa_valid:
