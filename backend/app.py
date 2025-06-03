@@ -4,7 +4,6 @@ from routes.activity import activity_bp
 from routes.certificate import certificate_bp
 from routes.blockchain import blockchain_bp
 from routes.verification import verification_bp
-from routes.frontend import frontend_bp
 from crypto.rsa_utils import generate_rsa_keys
 from database.auth import auth_bp
 
@@ -18,7 +17,6 @@ generate_rsa_keys()
 app.register_blueprint(certificate_bp, url_prefix="/certificate")
 app.register_blueprint(blockchain_bp, url_prefix="/blockchain")
 app.register_blueprint(verification_bp)
-app.register_blueprint(frontend_bp, url_prefix="/frontend")
 app.register_blueprint(activity_bp)
 app.register_blueprint(auth_bp) 
 
