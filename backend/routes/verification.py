@@ -15,7 +15,7 @@ from flask import session
 from config import contract, AES_SECRET_KEY
 from crypto.hash_utils import generate_md5_hash
 from crypto.rsa_utils import verify_signature
-from database.mongo import get_certificate_by_id, save_audit_log, collection_verify_logs
+from database.mongo import get_certificate_by_id, save_verify_log, collection_verify_logs
 from routes.blockchain import get_certificate_data
 from routes.certificate import regenerate_verified_certificate
 from crypto.aes_utils import decrypt_data
@@ -204,7 +204,7 @@ def verify():
                 ipfs_url = None
                 print("❌ Gagal upload ke IPFS")
 
-        save_audit_log({
+        save_verify_log({
             "certificate_id": certificate_id,
             "no_sertifikat": no_sertif,
             "contract_address": contract_address,

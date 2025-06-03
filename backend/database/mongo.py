@@ -39,6 +39,6 @@ def get_certificate_by_id(certificate_id, contract_address):
         "contract_address": contract_address
     })
 
-def save_audit_log(data: dict):
+def save_verify_log(data: dict):
     data["timestamp"] = datetime.utcnow()
     collection_verify_logs.insert_one(data)
