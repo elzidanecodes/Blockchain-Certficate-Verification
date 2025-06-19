@@ -18,7 +18,7 @@ const ActivityTable = () => {
   useEffect(() => {
     const fetchData = async () => {
       const res = await fetch(
-        `http://localhost:5000/api/activity?search=${search}&sort=${sort}`
+        `https://localhost:5000/api/activity?search=${search}&sort=${sort}`
       );
       const data = await res.json();
       setActivities(data);

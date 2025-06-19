@@ -19,9 +19,9 @@ const Home = () => {
     const fetchStats = async () => {
       try {
         const [res1, res2, res3] = await Promise.all([
-          fetch("http://localhost:5000/api/total_terbit"),
-          fetch("http://localhost:5000/api/total_terverifikasi"),
-          fetch("http://localhost:5000/api/total_belum_verifikasi"),
+          fetch("https://localhost:5000/api/total_terbit"),
+          fetch("https://localhost:5000/api/total_terverifikasi"),
+          fetch("https://localhost:5000/api/total_belum_verifikasi"),
         ]);
 
         const data1 = await res1.json();

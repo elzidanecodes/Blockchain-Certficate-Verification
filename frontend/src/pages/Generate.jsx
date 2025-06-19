@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 
 const Generate = () => {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     no_sertifikat: "",
     name: "",
@@ -12,9 +14,26 @@ const Generate = () => {
     reading: "",
     writing: "",
   });
-
   const [errors, setErrors] = useState({});
   const [certificateUrl, setCertificateUrl] = useState("");
+  const [isAllowed, setIsAllowed] = useState(null);
+
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    if (role === "admin") {
+      setIsAllowed(true);
+    } else {
+      navigate("/home", { replace: true });
+    }
+  }, [navigate]);
+
+  if (isAllowed === null) {
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-600 dark:text-white">
+        Mengecek akses...
+      </div>
+    );
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -60,7 +79,7 @@ const Generate = () => {
     };
 
     const response = await fetch(
-      "http://localhost:5000/certificate/generate_certificate",
+      "https://localhost:5000/certificate/generate_certificate",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -70,7 +89,7 @@ const Generate = () => {
 
     const data = await response.json();
     if (data.download_url) {
-      setCertificateUrl(`http://localhost:5000${data.download_url}`);
+      setCertificateUrl(`https://localhost:5000${data.download_url}`);
       Swal.fire({
         icon: "success",
         title: "Sertifikat Berhasil Dibuat",
