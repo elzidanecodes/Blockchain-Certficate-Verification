@@ -46,7 +46,7 @@ const Validation = () => {
     formData.append("file", image);
 
     try {
-      const response = await fetch("http://localhost:5000/verify_certificate", {
+      const response = await fetch("https://localhost:5000/verify_certificate", {
         method: "POST",
         body: formData,
         signal: controllerRef.current.signal,
@@ -132,7 +132,7 @@ const Validation = () => {
   useEffect(() => {
     if (!certificate_id) return;
 
-    fetch(`http://localhost:5000/api/verify/${certificate_id}`)
+    fetch(`https://localhost:5000/api/verify/${certificate_id}`)
       .then((res) => {
         if (!res.ok) throw new Error("Sertifikat belum diverifikasi.");
         return res.json();
