@@ -17,7 +17,7 @@ web3 = Web3(Web3.HTTPProvider(GANACHE_URL))
 if web3.is_connected():
     print("Connected to Etherium network")
 else:
-    print("Failed to connect to Ganache")
+    print("Failed to connect to Etherium network")
 
 # Load ABI contract dengan path absolut
 base_dir = os.path.abspath(os.path.dirname(__file__))
