@@ -62,7 +62,7 @@ def generate_certificate(data):
     contract_address = contract.address
 
     # Buat QR code
-    qr_data = f"http://127.0.0.1:5000/verify?certificate_id={certificate_id}"
+    qr_data = f"https://127.0.0.1:5000/verify?certificate_id={certificate_id}"
     qr_img = qrcode.make(qr_data).convert("RGBA").resize((200, 200))
     qr_buffer = io.BytesIO()
     qr_img.save(qr_buffer, format="PNG")
