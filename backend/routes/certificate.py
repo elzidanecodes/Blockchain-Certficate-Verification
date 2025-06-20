@@ -157,7 +157,7 @@ def regenerate_verified_certificate(data, certificate_id):
     draw.text((1130, 948), str(data["total_writing"]), font=font, fill="black")
 
     # Generate QR final → link publik
-    qr_data = f"http://localhost:5173/verify/{certificate_id}"
+    qr_data = f"https://localhost:5173/verify/{certificate_id}"
     qr_img = qrcode.make(qr_data).convert("RGBA").resize((200, 200))
 
     # Transparan background putih
