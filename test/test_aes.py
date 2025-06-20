@@ -1,28 +1,26 @@
-import sys
 import os
-sys.path.append(os.path.abspath('../backend'))
+import sys
+import pytest
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../backend")))
 
 from crypto.aes_utils import encrypt_data, decrypt_data
 from config import AES_SECRET_KEY
 
-def test_aes_encrypt_decrypt():
-    print("[🔒] Testing AES Encryption and Decryption...")
+@pytest.fixture
+def plaintext():
+    return "23374/PL2.3/KM/20220|Laita Zidan|2141762100"
 
-
-    plain = "23374/PL2.3/KM/20220|Laita Zidan|2141762100"
-    
-
+@pytest.fixture
+def aes_key():
     key = AES_SECRET_KEY
     if not key:
         raise ValueError("AES_SECRET_KEY is not set in the environment variables.")
-    encrypted = encrypt_data(plain, key)
-    print("🔐 Encrypted (base64):", encrypted)
+    return key
 
-    decrypted = decrypt_data(encrypted, key)
-    print("🔓 Decrypted:", decrypted)
+def test_encrypt_decrypt_aes(plaintext, aes_key):
+    encrypted = encrypt_data(plaintext, aes_key)
+    decrypted = decrypt_data(encrypted, aes_key)
 
-    assert decrypted == plain, "[❌] Hasil dekripsi tidak sesuai dengan data asli"
-    print("[✅] Enkripsi & dekripsi AES berhasil dan data utuh.")
-
-if __name__ == "__main__":
-    test_aes_encrypt_decrypt()
+    assert isinstance(encrypted, str), "Encrypted output harus berupa string base64"
+    assert decrypted == plaintext, "Hasil dekripsi tidak sesuai dengan data asli"
