@@ -1,0 +1,73 @@
+# ================================
+# 🌐 BACKEND (FLASK / PYTHON)
+# ================================
+__pycache__/
+*.py[cod]
+*.log
+*.db
+*.sqlite3
+instance/
+*.pyo
+
+# File lingkungan & secrets
+backend/.env
+backend/.env.*
+backend/keys/
+*.pem
+*.key
+*.crt
+*.secret
+
+# Certificate output (jika disimpan lokal)
+certs/
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# ================================
+# 🔗 BLOCKCHAIN (TRUFFLE)
+# ================================
+blockchain/build/
+blockchain/.secret
+blockchain/.env
+blockchain/.env.*
+blockchain/.cache/
+blockchain/.coverage/
+blockchain/test-*.json
+blockchain/*.log
+
+# Placeholder folder kosong
+blockchain/contracts/.gitkeep
+blockchain/migrations/.gitkeep
+
+# ================================
+# 💻 FRONTEND (REACT + TAILWIND)
+# ================================
+frontend/node_modules/
+frontend/dist/
+frontend/.vscode/
+frontend/.DS_Store
+frontend/.flowbite-react/
+frontend/test/
+
+# Cache / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ================================
+# 🔐 DOTENV VAULT & VARIABEL
+# ================================
+.env
+.env.*
+.env.vault
+.env.keys
+
+# ================================
+# ✅ GIT PROTEKSI
+# ================================
+!.gitignore
