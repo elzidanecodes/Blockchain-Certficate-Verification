@@ -6,7 +6,19 @@ const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [isDark, setIsDark] = useState(false);
   const navigate = useNavigate();
-  const role = localStorage.getItem("role") || "public";
+  const [userInfo, setUserInfo] = useState({ role: "public", username: "" });
+
+  useEffect(() => {
+    fetch("https://localhost:5000/api/check_role", {
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.role) {
+          setUserInfo({ role: data.role, username: data.username });
+        }
+      });
+  }, []);
 
   const menus = [
     { name: "Beranda", to: "/home", icon: "home" },
@@ -15,7 +27,7 @@ const Sidebar = () => {
   ];
 
   const visibleMenus = menus.filter((menu) => {
-    if (role === "admin") return true;
+    if (userInfo.role === "admin") return true;
     return menu.to !== "/generate";
   });
 
@@ -87,7 +99,7 @@ const Sidebar = () => {
                   : "text-[5px] w-full text-center whitespace-nowrap"
               }`}
             >
-              {role === "admin" ? "Navigasi Admin" : "Navigasi"}
+              {userInfo.role === "admin" ? "Navigasi Admin" : "Navigasi"}
             </h3>
           )}
           {visibleMenus.map((item) => (
@@ -120,7 +132,7 @@ const Sidebar = () => {
 
       <div>
         {/* User Profile Card */}
-        {role === "admin" ? (
+        {userInfo.role === "admin" ? (
           <div
             className={`transition-all duration-300 ${
               isOpen
@@ -132,8 +144,8 @@ const Sidebar = () => {
               <Icon name="avatar" className="w-10 h-10" />
               {isOpen && (
                 <div>
-                  <p className="text-sm font-semibold text-blue-dark dark:text-white">
-                    {localStorage.getItem("username") || "Admin"}
+                  <p className="text-sm font-semibold text-blue-dark dark:text-blue-dark">
+                    {userInfo.username || "Admin"}
                   </p>
                   <p className="text-xs text-gray-500">Admin</p>
                 </div>
@@ -144,16 +156,19 @@ const Sidebar = () => {
                 isOpen ? "justify-between" : "flex-col items-center gap-2"
               } text-sm text-gray-600 dark:text-gray-300`}
             >
-              <button className="flex items-center gap-1 hover:text-blue-dark">
+              <button className="flex items-center gap-1 text-gray-500 hover:text-blue-dark">
                 <Icon name="setting" className="w-5 h-5" />{" "}
                 {isOpen && "Setting"}
               </button>
               <button
-                onClick={() => {
-                  localStorage.clear();
+                onClick={async () => {
+                  await fetch("https://localhost:5000/api/logout", {
+                    method: "POST",
+                    credentials: "include",
+                  });
                   navigate("/login");
                 }}
-                className="flex items-center gap-1 hover:text-red-dark"
+                className="flex items-center gap-1 text-gray-500 hover:text-red-dark"
               >
                 <Icon name="logout" className="w-5 h-5" /> {isOpen && "Logout"}
               </button>

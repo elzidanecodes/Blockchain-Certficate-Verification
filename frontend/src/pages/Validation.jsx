@@ -14,6 +14,86 @@ const Validation = () => {
   const fileInputRef = useRef(null);
   const controllerRef = useRef(null);
   const { certificate_id } = useParams();
+  const [role, setRole] = useState(null);
+  const isAdmin = role === "admin";
+
+  useEffect(() => {
+    fetch("https://localhost:5000/api/check_role", {
+      credentials: "include",
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          setRole("public");
+          return;
+        }
+        const data = await res.json();
+        if (data.role) {
+          setRole(data.role);
+          console.log("✅ role dari backend:", data.role);
+        } else {
+          setRole("public");
+          console.log("Tidak ada role di response, fallback ke public");
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Gagal ambil role:", err);
+        setRole("public");
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!certificate_id || role === null) return;
+
+    fetch(`https://localhost:5000/api/verify/${certificate_id}`, {
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Sertifikat belum diverifikasi.");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.valid === true) {
+          setResult({
+            ...data,
+            image_base64: null,
+            source: "qr",
+          });
+          setCompletedSteps([0, 1, 2, 3, 4]);
+
+          Swal.fire({
+            icon: "success",
+            title: "Sertifikat Valid",
+            text: `Sertifikat ini telah diverifikasi pada (${data.verified_at})`,
+            confirmButtonColor: "#3085d6",
+          });
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Sertifikat Tidak Valid",
+            text: data.message,
+          });
+        }
+      })
+      .catch(() => {
+        setResult({
+          valid: false,
+          source: "qr",
+        });
+        Swal.fire({
+          icon: "info",
+          title: "Belum Diverifikasi",
+          text: "Sertifikat ini belum diverifikasi oleh admin.",
+        });
+      });
+  }, [certificate_id, role]);
+
+  if (role === null) {
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-600 dark:text-white">
+        Memuat akses...
+      </div>
+    );
+  }
 
   const handleReset = () => {
     if (controllerRef.current) {
@@ -46,11 +126,14 @@ const Validation = () => {
     formData.append("file", image);
 
     try {
-      const response = await fetch("https://localhost:5000/verify_certificate", {
-        method: "POST",
-        body: formData,
-        signal: controllerRef.current.signal,
-      });
+      const response = await fetch(
+        "https://localhost:5000/verify_certificate",
+        {
+          method: "POST",
+          body: formData,
+          signal: controllerRef.current.signal,
+        }
+      );
 
       const data = await response.json();
 
@@ -128,67 +211,6 @@ const Validation = () => {
     }
   };
 
-  // Mode scan QR: langsung fetch data dari backend
-  useEffect(() => {
-    if (!certificate_id) return;
-
-    fetch(`https://localhost:5000/api/verify/${certificate_id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Sertifikat belum diverifikasi.");
-        return res.json();
-      })
-      .then((data) => {
-        if (data.valid === true) {
-          setResult({
-            ...data,
-            image_base64: null,
-            source: "qr",
-          });
-          setCompletedSteps([0, 1, 2, 3, 4]);
-
-          Swal.fire({
-            icon: "success",
-            title: "Sertifikat Valid",
-            text: `${"Sertifikat ini telah diverifikasi pada"} (${
-              data.verified_at
-            })`,
-            confirmButtonColor: "#3085d6",
-            confirmButtonText: "OK",
-          });
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Sertifikat Tidak Valid",
-            text: data.message,
-          });
-        }
-      })
-      .catch((err) => {
-        setResult({
-          valid: false,
-          source: "qr",
-        });
-        Swal.fire({
-          icon: "info",
-          title: "Belum Diverifikasi",
-          text: "Sertifikat ini belum diverifikasi oleh admin.",
-        });
-      });
-  }, [certificate_id]);
-
-  useEffect(() => {
-    const role = localStorage.getItem("role");
-
-    if (!certificate_id && role !== "admin") {
-      Swal.fire({
-        title: "Akses Terbatas",
-        text: "Halaman ini hanya bisa diakses melalui scan QR Code di sertifikat.",
-        icon: "info",
-        confirmButtonText: "Saya Mengerti",
-      });
-    }
-  }, []);
-
   const steps = [
     "Unggah File",
     "Ekstrak Data Gambar",
@@ -204,7 +226,7 @@ const Validation = () => {
       </h2>
 
       {/* Verifikasi Upload */}
-      {localStorage.getItem("role") === "admin" && (
+      {isAdmin && (
         <div className="bg-white shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 mb-4 dark:bg-gray-800">
           <div className="px-4 py-8 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
             <div className="space-y-6">
@@ -469,7 +491,7 @@ const Validation = () => {
         </div>
       )}
 
-      {!certificate_id && localStorage.getItem("role") !== "admin" && (
+      {!isAdmin && (
         <div className="bg-red-50 shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-8 py-8 border border-red-200">
           <div className="flex flex-col justify-center items-start px-6 space-y-8">
             <div className="flex items-center gap-3">
@@ -518,7 +540,7 @@ const Validation = () => {
                   src={result.ipfs_url}
                   alt="Sertifikat"
                   className={`w-full max-w-[680px] h-auto rounded-10 select-none pointer-events-none mx-auto ${
-                    localStorage.getItem("role") !== "admin" ? "blur-sm" : ""
+                    !isAdmin ? "blur-sm" : ""
                   }`}
                   onContextMenu={(e) => e.preventDefault()}
                   draggable={false}

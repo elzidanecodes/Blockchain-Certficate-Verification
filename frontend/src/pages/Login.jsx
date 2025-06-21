@@ -14,17 +14,16 @@ export default function Login() {
       const response = await fetch("https://localhost:5000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.role === "admin") {
-        localStorage.setItem("role", data.role);
-        localStorage.setItem("username", data.username);
+      if (response.ok) {
         navigate("/home");
       } else {
-        alert("Email atau password salah!");
+        alert(data.error || "Email atau password salah!");
       }
     } catch (error) {
       alert("Terjadi kesalahan server");
@@ -33,10 +32,17 @@ export default function Login() {
 
   // redirect jika sudah login
   useEffect(() => {
-    const role = localStorage.getItem("role");
-    if (role) {
-      navigate("/home");
-    }
+    fetch("https://localhost:5000/api/check_role", {
+      method: "GET",
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.role) {
+          navigate("/home");
+        }
+      })
+      .catch(() => {});
   }, [navigate]);
 
   return (
@@ -116,7 +122,17 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="mt-10 text-base text-center text-gray-500">
+        <p className="mt-4 text-center text-sm text-gray-500">
+          Atau lanjut sebagai{" "}
+          <button
+            onClick={() => navigate("/home")}
+            className="text-blue-dark hover:underline font-normal"
+          >
+            Pengguna Publik
+          </button>
+        </p>
+
+        <p className="mt-4 text-base text-center text-gray-500">
           Belum punya akun?{" "}
           <a href="#" className="text-blue-dark hover:underline">
             Hubungi administrator.

@@ -19,12 +19,23 @@ const Generate = () => {
   const [isAllowed, setIsAllowed] = useState(null);
 
   useEffect(() => {
-    const role = localStorage.getItem("role");
-    if (role === "admin") {
-      setIsAllowed(true);
-    } else {
-      navigate("/home", { replace: true });
-    }
+    const cekRole = async () => {
+      try {
+        const res = await fetch("https://localhost:5000/api/check_role", {
+          credentials: "include",
+        });
+        const data = await res.json();
+
+        if (res.ok && data.role === "admin") {
+          setIsAllowed(true);
+        } else {
+          navigate("/home", { replace: true });
+        }
+      } catch (err) {
+        navigate("/home", { replace: true });
+      }
+    };
+    cekRole();
   }, [navigate]);
 
   if (isAllowed === null) {
