@@ -1,5 +1,6 @@
 from flask import Flask, send_from_directory, session
 from flask_cors import CORS
+from flask_session import Session 
 from config import SECRET_KEY
 from routes.activity import activity_bp
 from routes.certificate import certificate_bp
@@ -12,15 +13,32 @@ import os
 
 app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
 
-# secret key dan session config
+# ======== Konfigurasi Session Server-side ========
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+SESSION_FOLDER = os.path.join(BASE_DIR, "session")
+
 app.secret_key = SECRET_KEY
 app.permanent_session_lifetime = timedelta(hours=2)
+
+app.config.update(
+    SESSION_TYPE="filesystem",
+    SESSION_FILE_DIR=SESSION_FOLDER,
+    SESSION_PERMANENT=True,
+    SESSION_USE_SIGNER=True,
+    SESSION_COOKIE_NAME="session",
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="None"
+)
+
+# Inisialisasi session server-side
+Session(app)
+# ============================================================
 
 # Konfigurasi CORS
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "https://localhost:5173"}})
 
 # sertifikat SSL
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 KEYS_PATH = os.path.join(os.path.dirname(BASE_DIR), "backend", "keys")
 CERT_PATH = os.path.join(KEYS_PATH, "cert.pem")
 KEY_PATH = os.path.join(KEYS_PATH, "key.pem")
@@ -36,12 +54,4 @@ app.register_blueprint(activity_bp)
 app.register_blueprint(auth_bp)
 
 if __name__ == "__main__":
-    app.config.update(
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="None" 
-    )
-    app.run(
-        debug=True,
-        ssl_context=(CERT_PATH, KEY_PATH)
-    )
+    app.run(debug=True, ssl_context=(CERT_PATH, KEY_PATH))
