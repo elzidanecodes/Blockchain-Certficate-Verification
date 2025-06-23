@@ -2,7 +2,6 @@
 
 # ===============================
 # OPENSSL TEST SCRIPT – BLOCKCHAIN VERIFIKASI SERTIFIKAT
-# Deskripsi: Skrip ini menguji kriptografi menggunakan OpenSSL untuk menandatang
 # ===============================
 
 # Cari direktori utama proyek
