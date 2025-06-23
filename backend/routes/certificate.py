@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, session
 import io
 import base64
 import os
@@ -12,6 +12,7 @@ from crypto.hash_utils import generate_md5_hash
 from crypto.rsa_utils import load_private_key, sign_data
 from crypto.aes_utils import encrypt_data
 from routes.blockchain import store_signature
+from database.auth import get_fingerprint
 
 certificate_bp = Blueprint("certificate", __name__)
 
@@ -196,6 +197,18 @@ def regenerate_verified_certificate(data, certificate_id):
 
 @certificate_bp.route("/generate_certificate", methods=["POST"])
 def generate():
+    # Validasi session fingerprint
+    expected_fingerprint = session.get("fingerprint")
+    current_fingerprint = get_fingerprint()
+
+    if expected_fingerprint != current_fingerprint:
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    # Validasi role
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    
     try:
         data = request.get_json()
         certificate_id = generate_certificate(data)
@@ -212,6 +225,16 @@ def generate():
 
 @certificate_bp.route("/download_certificate/<certificate_id>", methods=["GET"])
 def download_certificate(certificate_id):
+    # Cek fingerprint
+    if session.get("fingerprint") != get_fingerprint():
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    # Cek role admin
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    
     contract_address = contract.address 
     record = get_certificate_by_id(certificate_id, contract_address)
 

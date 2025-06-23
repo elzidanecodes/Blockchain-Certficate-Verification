@@ -20,6 +20,7 @@ from routes.blockchain import get_certificate_data
 from routes.certificate import regenerate_verified_certificate
 from crypto.aes_utils import decrypt_data
 from ipfs.ipfs_utils import upload_to_ipfs
+from database.auth import get_fingerprint
 
 verification_bp = Blueprint("verification", __name__)
 reader = easyocr.Reader(['en', 'id'], gpu=False)
@@ -111,6 +112,18 @@ def extract_certificate_id_from_qr(image):
 
 @verification_bp.route("/verify_certificate", methods=["POST"])
 def verify():
+    # Validasi session fingerprint
+    expected_fingerprint = session.get("fingerprint")
+    current_fingerprint = get_fingerprint()
+
+    if expected_fingerprint != current_fingerprint:
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    # Validasi role
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file uploaded"}), 400
@@ -251,6 +264,15 @@ def api_verify_certificate(certificate_id):
     
 @verification_bp.route("/get_verified_image/<certificate_id>", methods=["GET"])
 def get_verified_image(certificate_id):
+    # Cek fingerprint
+    if session.get("fingerprint") != get_fingerprint():
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    # Cek role admin
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+    
     contract_address = contract.address
     record = get_certificate_by_id(certificate_id, contract_address)
 
