@@ -3,11 +3,14 @@ import io
 import base64
 import os
 import qrcode
+import pandas as pd
+import shutil
+import zipfile
 from PIL import ImageFont
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from config import contract, AES_SECRET_KEY
-from database.mongo import save_certificate_data, get_certificate_by_id
+from database.mongo import save_certificate_data, get_certificate_by_id, collection_cert
 from crypto.hash_utils import generate_md5_hash
 from crypto.rsa_utils import load_private_key, sign_data
 from crypto.aes_utils import encrypt_data
@@ -33,7 +36,6 @@ def get_certificate_id_from_blockchain():
     return contract.functions.certificateCounter().call()
 
 def generate_certificate(data):
-
     # Validasi input
     required_fields = [
         "no_sertifikat", "name", "student_id", "department", "test_date",
@@ -42,8 +44,25 @@ def generate_certificate(data):
     for field in required_fields:
         if field not in data or not data[field]:
             raise ValueError(f"Missing required field: {field}")
+        
+    # Konversi tipe field sesuai definisi frontend
+    try:
+        data["listening"] = int(data["listening"])
+        data["reading"] = int(data["reading"])
+        data["writing"] = int(data["writing"])
+        data["total_lr"] = int(data["total_lr"])
+        data["total_writing"] = int(data["total_writing"])
+    except (ValueError, TypeError):
+        raise ValueError("Field nilai Listening, Reading, Writing, Total LR, dan Total Writing harus berupa angka (integer).")
 
-    # Format hash input
+    # Konversi semua field lainnya jadi string
+    for key in data:
+        if key not in ["listening", "reading", "writing", "total_lr", "total_writing"]:
+            if not isinstance(data[key], str):
+                data[key] = str(data[key])
+
+
+    # Generate MD5 hash
     hash_input = f"{data['no_sertifikat']}|{data['name']}|{data['student_id']}"
     print("📌 HASH input saat generate:", hash_input)
     md5_hash = generate_md5_hash(hash_input)
@@ -52,77 +71,73 @@ def generate_certificate(data):
     private_key = load_private_key()
     signature = sign_data(md5_hash, private_key)
 
-    # Enkripsi data user
-    user_info = {
-        **{k: data[k] for k in required_fields},
-    }
+    # Enkripsi data
+    user_info = {k: data[k] for k in required_fields}
     encrypted_info = encrypt_data(user_info, AES_SECRET_KEY)
 
-    # Transaksi ke blockchain
-    certificate_id = store_signature(signature)
-    contract_address = contract.address
-
-    # Buat QR code
-    qr_data = f"https://127.0.0.1:5000/verify?certificate_id={certificate_id}"
+    # Generate QR code
+    qr_data = "PLACEHOLDER"
     qr_img = qrcode.make(qr_data).convert("RGBA").resize((200, 200))
     qr_buffer = io.BytesIO()
     qr_img.save(qr_buffer, format="PNG")
     qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode()
-    
-    # Ambil pixel dan buat transparan
+
+    # Transparankan QR background
     datas = qr_img.getdata()
     newData = []
     for item in datas:
-        # Jika putih, buat transparan
         if item[:3] == (255, 255, 255):
-            newData.append((255, 255, 255, 0))  # 0 = transparan
+            newData.append((255, 255, 255, 0))
         else:
             newData.append(item)
-
     qr_img.putdata(newData)
 
-    # Load template sertifikat
+    # Generate sertifikat (PNG)
     if not os.path.exists(TEMPLATE_PATH):
         raise FileNotFoundError("Template sertifikat tidak ditemukan")
 
     img = Image.open(TEMPLATE_PATH)
     draw = ImageDraw.Draw(img)
 
-    # Font
     try:
         font_path = os.path.join(FONT_DIR, "Montserrat-SemiBold.ttf")
         font_default = ImageFont.truetype(font_path, 25)
-        
     except IOError:
-        font_default = font_big = ImageFont.load_default()
+        font_default = ImageFont.load_default()
 
-    # Insert data ke posisi yang sesuai
     draw.text((1005, 454), data["no_sertifikat"], font=font_default, fill="black")
     draw.text((415, 502), data["name"], font=font_default, fill="black")
     draw.text((415, 536), data["student_id"], font=font_default, fill="black")
     draw.text((1225, 502), data["department"], font=font_default, fill="black")
     draw.text((1225, 536), data["test_date"], font=font_default, fill="black")
-
     draw.text((640, 655), str(data["listening"]), font=font_default, fill="black")
     draw.text((980, 655), str(data["reading"]), font=font_default, fill="black")
     draw.text((1310, 655), str(data["total_lr"]), font=font_default, fill="black")
-
     draw.text((830, 948), str(data["writing"]), font=font_default, fill="black")
     draw.text((1130, 948), str(data["total_writing"]), font=font_default, fill="black")
-
     img.paste(qr_img, (880, 1090), qr_img)
 
-    # Simpan hasil sertifikat ke buffer base64
     cert_buffer = io.BytesIO()
     img.save(cert_buffer, format="PNG")
     cert_base64 = base64.b64encode(cert_buffer.getvalue()).decode()
 
-    # Simpan ke database
+    # Transaksi ke blockchain
+    certificate_id = store_signature(signature)
+    contract_address = contract.address
+
+    # Update QR code data dengan certificate_id
+    qr_data_final = f"https://127.0.0.1:5000/verify?certificate_id={certificate_id}"
+    final_qr_img = qrcode.make(qr_data_final).convert("RGBA").resize((200, 200))
+    final_qr_buffer = io.BytesIO()
+    final_qr_img.save(final_qr_buffer, format="PNG")
+    final_qr_base64 = base64.b64encode(final_qr_buffer.getvalue()).decode()
+
+    # Simpan final certificate ke MongoDB
     save_certificate_data(
         certificate_id=certificate_id,
         contract_address=contract_address,
         encrypted_data_sertif=encrypted_info,
-        qr_base64=qr_base64,
+        qr_base64=final_qr_base64,
         cert_base64=cert_base64
     )
 
@@ -222,7 +237,93 @@ def generate():
         return jsonify({"error": str(ve)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@certificate_bp.route("/upload_excel", methods=["POST"])
+def upload_excel_and_download_zip():
+    expected_fingerprint = session.get("fingerprint")
+    current_fingerprint = get_fingerprint()
 
+    if expected_fingerprint != current_fingerprint:
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+
+    filename = file.filename
+    try:
+        # Baca file berdasarkan extension
+        if filename.endswith('.xlsx') or filename.endswith('.xls'):
+            df = pd.read_excel(file)
+        elif filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        else:
+            return jsonify({"error": "Format file tidak didukung. Hanya .xlsx, .xls, .csv"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Gagal membaca file: {str(e)}"}), 400
+    
+    if len(df) > 100:
+        return jsonify({"error": "Maksimal 100 data per upload untuk mencegah overload server."}), 400
+
+    required_columns = ["no_sertifikat", "name", "student_id", "department", "test_date", "listening", "reading", "writing", "total_lr", "total_writing"]
+    for col in required_columns:
+        if col not in df.columns:
+            return jsonify({"error": f"Missing column: {col}"}), 400
+
+    # Siapkan folder sementara untuk PNG hasil generate
+    temp_folder = "temp_certificates"
+    if os.path.exists(temp_folder):
+        shutil.rmtree(temp_folder)
+    os.makedirs(temp_folder)
+
+    generated_ids = []
+
+    for _, row in df.iterrows():
+        data = row.to_dict()
+        try:
+            certificate_id = generate_certificate(data)
+            generated_ids.append(certificate_id)
+
+            # Ambil dari Mongo
+            record = get_certificate_by_id(certificate_id, contract.address)
+            cert_b64 = record.get("certificate_png")
+            cert_binary = base64.b64decode(cert_b64)
+
+            # Simpan PNG ke temp folder
+            with open(os.path.join(temp_folder, f"{certificate_id}.png"), "wb") as f_out:
+                f_out.write(cert_binary)
+
+        except Exception as e:
+            print(f"Gagal generate untuk {data['name']}: {e}")
+
+    if not generated_ids:
+        return jsonify({"error": "Tidak ada sertifikat berhasil dibuat"}), 500
+
+    # Buat ZIP
+    zip_path = "all_certificates.zip"
+    with zipfile.ZipFile(zip_path, "w") as zipf:
+        for filename in os.listdir(temp_folder):
+            file_path = os.path.join(temp_folder, filename)
+            zipf.write(file_path, filename)
+
+    # Bersihkan folder temp
+    shutil.rmtree(temp_folder)
+
+    # Kirim ZIP sebagai download
+    return send_file(
+        zip_path,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="all_certificates.zip"
+    )
+    
 @certificate_bp.route("/download_certificate/<certificate_id>", methods=["GET"])
 def download_certificate(certificate_id):
     # Cek fingerprint
@@ -252,3 +353,61 @@ def download_certificate(certificate_id):
         as_attachment=True,
         download_name=f"{certificate_id}.png"
     )
+
+@certificate_bp.route("/download_batch_zip", methods=["GET"])
+def download_batch_zip():
+    expected_fingerprint = session.get("fingerprint")
+    current_fingerprint = get_fingerprint()
+
+    if expected_fingerprint != current_fingerprint:
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        # Ambil semua sertifikat dari MongoDB
+        all_certificates = list(collection_cert.find())
+
+        if not all_certificates:
+            return jsonify({"error": "Tidak ada sertifikat ditemukan di database"}), 404
+
+        # Siapkan folder temp
+        temp_folder = "temp_batch_certificates"
+        if os.path.exists(temp_folder):
+            shutil.rmtree(temp_folder)
+        os.makedirs(temp_folder)
+
+        # Simpan semua PNG dari database
+        for cert in all_certificates:
+            certificate_id = cert.get("certificate_id")
+            cert_b64 = cert.get("certificate_png")
+            if not certificate_id or not cert_b64:
+                continue
+
+            cert_binary = base64.b64decode(cert_b64)
+            output_path = os.path.join(temp_folder, f"{certificate_id}.png")
+            with open(output_path, "wb") as f_out:
+                f_out.write(cert_binary)
+
+        # Buat ZIP
+        zip_path = "batch_certificates.zip"
+        with zipfile.ZipFile(zip_path, "w") as zipf:
+            for filename in os.listdir(temp_folder):
+                file_path = os.path.join(temp_folder, filename)
+                zipf.write(file_path, filename)
+
+        # Bersihkan folder temp
+        shutil.rmtree(temp_folder)
+
+        # Return ZIP
+        return send_file(
+            zip_path,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="batch_certificates.zip"
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
