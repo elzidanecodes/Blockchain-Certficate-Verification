@@ -264,14 +264,7 @@ def api_verify_certificate(certificate_id):
     
 @verification_bp.route("/get_verified_image/<certificate_id>", methods=["GET"])
 def get_verified_image(certificate_id):
-    # Cek fingerprint
-    if session.get("fingerprint") != get_fingerprint():
-        session.clear()
-        return jsonify({"error": "Session mismatch"}), 401
-
-    # Cek role admin
-    if session.get("role") != "admin":
-        return jsonify({"error": "Unauthorized"}), 403
+    
     
     contract_address = contract.address
     record = get_certificate_by_id(certificate_id, contract_address)

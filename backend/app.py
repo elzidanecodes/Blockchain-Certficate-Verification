@@ -31,6 +31,10 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="None"
 )
 
+if not os.path.exists(SESSION_FOLDER):
+    os.makedirs(SESSION_FOLDER)
+
+
 # Inisialisasi session server-side
 Session(app)
 # ============================================================
@@ -54,4 +58,4 @@ app.register_blueprint(activity_bp)
 app.register_blueprint(auth_bp)
 
 if __name__ == "__main__":
-    app.run(debug=True, ssl_context=(CERT_PATH, KEY_PATH))
+    app.run(ssl_context=(CERT_PATH, KEY_PATH))

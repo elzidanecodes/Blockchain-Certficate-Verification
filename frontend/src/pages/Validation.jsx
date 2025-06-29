@@ -130,6 +130,7 @@ const Validation = () => {
         "https://localhost:5000/verify_certificate",
         {
           method: "POST",
+          credentials: "include",
           body: formData,
           signal: controllerRef.current.signal,
         }
@@ -491,7 +492,7 @@ const Validation = () => {
         </div>
       )}
 
-      {!isAdmin && (
+      {!isAdmin && !result &&(
         <div className="bg-red-50 shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-8 py-8 border border-red-200">
           <div className="flex flex-col justify-center items-start px-6 space-y-8">
             <div className="flex items-center gap-3">
