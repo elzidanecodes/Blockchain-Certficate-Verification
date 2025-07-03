@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="frontend/public/icons/logo.png" alt="Logo Sistem" width="180"/>
+  <img src="./frontend/public/icons/logo.png" alt="Logo Sistem" width="180"/>
 </p>
 
 <h1 align="center">Sistem Verifikasi Sertifikat Digital Berbasis Blockchain</h1>
 
 <p align="center">
   Dibangun oleh Laita Zidan sebagai bagian dari tugas akhir di Politeknik Negeri Malang (POLINEMA).<br>
-  Sistem ini mengintegrasikan teknologi blockchain, IPFS, QR Code, RSA/AES untuk memastikan keaslian sertifikat digital.
+  Sistem ini mengintegrasikan teknologi blockchain, IPFS, QR Code, Digital Signature RSA, Enkripsi AES untuk memastikan keaslian sertifikat digital.
 </p>
 
 ---
@@ -42,7 +42,7 @@
 
 ```
 BLOCKCHAIN-VERIFIKASI-SERTIFIKAT/
-├── backend/           # Flask API + enkripsi + upload IPFS
+├── backend/           # Flask API + enkripsi + Hashing + digital signature + interaksi blockchain + upload IPFS
 ├── blockchain/        # Smart contract + konfigurasi Truffle
 ├── frontend/          # React UI (generate, verifikasi, audit)
 ├── LICENSE            # Lisensi MIT
@@ -86,10 +86,10 @@ BLOCKCHAIN-VERIFIKASI-SERTIFIKAT/
 
 ## 👮 Role & Akses
 
-| Role    | Fitur                                 |
-|---------|----------------------------------------|
-| Admin   | Login, Generate, Verifikasi, Audit Log |
-| Publik  | Scan QR, Verifikasi tanpa login        |
+| Role    | Fitur                                      | 
+|---------|--------------------------------------------|
+| Admin   | Login, Generate, Verifikasi, Audit Log     |
+| Publik  | Verifikasi tanpa login dengan Scan QRCode  |
 
 ---
 
