@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./frontend/public/icons/logo.png" alt="Logo Sistem" width="180"/>
+  <img src="frontend/public/logo.png" alt="Logo Sistem" width="180"/>
 </p>
 
 <h1 align="center">Sistem Verifikasi Sertifikat Digital Berbasis Blockchain</h1>
