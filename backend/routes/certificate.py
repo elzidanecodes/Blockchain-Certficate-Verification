@@ -44,25 +44,8 @@ def generate_certificate(data):
     for field in required_fields:
         if field not in data or not data[field]:
             raise ValueError(f"Missing required field: {field}")
-        
-    # Konversi tipe field sesuai definisi frontend
-    try:
-        data["listening"] = int(data["listening"])
-        data["reading"] = int(data["reading"])
-        data["writing"] = int(data["writing"])
-        data["total_lr"] = int(data["total_lr"])
-        data["total_writing"] = int(data["total_writing"])
-    except (ValueError, TypeError):
-        raise ValueError("Field nilai Listening, Reading, Writing, Total LR, dan Total Writing harus berupa angka (integer).")
 
-    # Konversi semua field lainnya jadi string
-    for key in data:
-        if key not in ["listening", "reading", "writing", "total_lr", "total_writing"]:
-            if not isinstance(data[key], str):
-                data[key] = str(data[key])
-
-
-    # Generate MD5 hash
+    # Format hash input
     hash_input = f"{data['no_sertifikat']}|{data['name']}|{data['student_id']}"
     print("📌 HASH input saat generate:", hash_input)
     md5_hash = generate_md5_hash(hash_input)
@@ -71,73 +54,77 @@ def generate_certificate(data):
     private_key = load_private_key()
     signature = sign_data(md5_hash, private_key)
 
-    # Enkripsi data
-    user_info = {k: data[k] for k in required_fields}
+    # Enkripsi data user
+    user_info = {
+        **{k: data[k] for k in required_fields},
+    }
     encrypted_info = encrypt_data(user_info, AES_SECRET_KEY)
 
-    # Generate QR code
-    qr_data = "PLACEHOLDER"
+    # Transaksi ke blockchain
+    certificate_id = store_signature(signature)
+    contract_address = contract.address
+
+    # Buat QR code
+    qr_data = f"https://127.0.0.1:5000/verify?certificate_id={certificate_id}"
     qr_img = qrcode.make(qr_data).convert("RGBA").resize((200, 200))
     qr_buffer = io.BytesIO()
     qr_img.save(qr_buffer, format="PNG")
     qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode()
-
-    # Transparankan QR background
+    
+    # Ambil pixel dan buat transparan
     datas = qr_img.getdata()
     newData = []
     for item in datas:
+        # Jika putih, buat transparan
         if item[:3] == (255, 255, 255):
-            newData.append((255, 255, 255, 0))
+            newData.append((255, 255, 255, 0))  # 0 = transparan
         else:
             newData.append(item)
+
     qr_img.putdata(newData)
 
-    # Generate sertifikat (PNG)
+    # Load template sertifikat
     if not os.path.exists(TEMPLATE_PATH):
         raise FileNotFoundError("Template sertifikat tidak ditemukan")
 
     img = Image.open(TEMPLATE_PATH)
     draw = ImageDraw.Draw(img)
 
+    # Font
     try:
         font_path = os.path.join(FONT_DIR, "Montserrat-SemiBold.ttf")
         font_default = ImageFont.truetype(font_path, 25)
+        
     except IOError:
-        font_default = ImageFont.load_default()
+        font_default = font_big = ImageFont.load_default()
 
+    # Insert data ke posisi yang sesuai
     draw.text((1005, 454), data["no_sertifikat"], font=font_default, fill="black")
     draw.text((415, 502), data["name"], font=font_default, fill="black")
     draw.text((415, 536), data["student_id"], font=font_default, fill="black")
     draw.text((1225, 502), data["department"], font=font_default, fill="black")
     draw.text((1225, 536), data["test_date"], font=font_default, fill="black")
+
     draw.text((640, 655), str(data["listening"]), font=font_default, fill="black")
     draw.text((980, 655), str(data["reading"]), font=font_default, fill="black")
     draw.text((1310, 655), str(data["total_lr"]), font=font_default, fill="black")
+
     draw.text((830, 948), str(data["writing"]), font=font_default, fill="black")
     draw.text((1130, 948), str(data["total_writing"]), font=font_default, fill="black")
+
     img.paste(qr_img, (880, 1090), qr_img)
 
+    # Simpan hasil sertifikat ke buffer base64
     cert_buffer = io.BytesIO()
     img.save(cert_buffer, format="PNG")
     cert_base64 = base64.b64encode(cert_buffer.getvalue()).decode()
 
-    # Transaksi ke blockchain
-    certificate_id = store_signature(signature)
-    contract_address = contract.address
-
-    # Update QR code data dengan certificate_id
-    qr_data_final = f"https://127.0.0.1:5000/verify?certificate_id={certificate_id}"
-    final_qr_img = qrcode.make(qr_data_final).convert("RGBA").resize((200, 200))
-    final_qr_buffer = io.BytesIO()
-    final_qr_img.save(final_qr_buffer, format="PNG")
-    final_qr_base64 = base64.b64encode(final_qr_buffer.getvalue()).decode()
-
-    # Simpan final certificate ke MongoDB
+    # Simpan ke database
     save_certificate_data(
         certificate_id=certificate_id,
         contract_address=contract_address,
         encrypted_data_sertif=encrypted_info,
-        qr_base64=final_qr_base64,
+        qr_base64=qr_base64,
         cert_base64=cert_base64
     )
 
