@@ -7,6 +7,9 @@ import base64
 import io
 import numpy as np
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import zipfile
+import tempfile
 from PIL import Image 
 from datetime import datetime
 from pyzbar.pyzbar import decode
@@ -23,7 +26,7 @@ from ipfs.ipfs_utils import upload_to_ipfs
 from database.auth import get_fingerprint
 
 verification_bp = Blueprint("verification", __name__)
-reader = easyocr.Reader(['en', 'id'], gpu=False)
+reader = easyocr.Reader(['en', 'id'], gpu=True)
 
 def extract_text_from_image(results):
 
@@ -234,6 +237,107 @@ def verify():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+@verification_bp.route("/verify_certificate_zip", methods=["POST"])
+def verify_certificate_zip():
+    expected_fingerprint = session.get("fingerprint")
+    current_fingerprint = get_fingerprint()
+
+    if expected_fingerprint != current_fingerprint:
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    zip_file = request.files['file']
+    if zip_file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+
+    results = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        zip_path = os.path.join(tmpdir, zip_file.filename)
+        zip_file.save(zip_path)
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(tmpdir)
+
+        image_paths = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.lower().endswith(".png")]
+
+        def process_image(img_path):
+            try:
+                img = Image.open(img_path).convert("RGB")
+                img_np = np.array(img)
+
+                certificate_id = extract_certificate_id_from_qr(img_np)
+                if not certificate_id:
+                    return {"file": img_path, "status": "QR tidak valid"}
+
+                existing_log = collection_verify_logs.find_one({
+                    "certificate_id": {"$regex": f"^{certificate_id}$", "$options": "i"},
+                    "valid": True
+                })
+                if existing_log:
+                    return {"certificate_id": certificate_id, "status": "Sudah diverifikasi"}
+
+                ocr_results = reader.readtext(img_np, detail=0)
+                extracted = extract_text_from_image(ocr_results)
+                if not extracted:
+                    return {"certificate_id": certificate_id, "status": "OCR gagal"}
+
+                no_sertif = extracted["no_sertifikat"]
+                name = extracted["name"]
+                student_id = extracted["student_id"]
+                hash_input = f"{no_sertif}|{name}|{student_id}"
+                hash_ulang = generate_md5_hash(hash_input)
+
+                valid, cert_id, signature_b64 = get_certificate_data(certificate_id)
+                if not valid:
+                    return {"certificate_id": certificate_id, "status": "Tidak ditemukan di blockchain"}
+
+                rsa_valid = verify_signature(hash_ulang, signature_b64)
+                ipfs_cid = ipfs_url = qr_base64 = img_base64 = None
+
+                if rsa_valid:
+                    data_db = get_certificate_by_id(certificate_id, contract.address)
+                    decrypted = decrypt_data(data_db["encrypted_data_sertif"], AES_SECRET_KEY)
+                    img_bytes, img_base64, qr_base64 = regenerate_verified_certificate(decrypted, certificate_id)
+                    ipfs_res = upload_to_ipfs(img_bytes)
+                    if ipfs_res:
+                        ipfs_cid = ipfs_res.get("cid")
+                        ipfs_url = ipfs_res.get("url")
+
+                save_verify_log({
+                    "certificate_id": certificate_id,
+                    "no_sertifikat": no_sertif,
+                    "contract_address": contract.address,
+                    "ipfs_cid": ipfs_cid,
+                    "ipfs_url": ipfs_url,
+                    "qr_code": qr_base64,
+                    "hash": hash_ulang,
+                    "verified_by": session.get("username", "admin"),
+                    "valid": rsa_valid,
+                    "result": "success" if rsa_valid else "failed",
+                    "note": "Sertifikat berhasil diverifikasi" if rsa_valid else "Verifikasi gagal"
+                })
+
+                return {"certificate_id": certificate_id, "status": "success" if rsa_valid else "invalid signature"}
+
+            except Exception as e:
+                return {"file": img_path, "status": "error", "message": str(e)}
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(process_image, img_path) for img_path in image_paths]
+            for future in as_completed(futures):
+                results.append(future.result())
+
+    return jsonify({
+        "message": "Batch verifikasi selesai",
+        "jumlah_total": len(results),
+        "hasil": results
+    })
 
 # Endpoint untuk API verifikasi sertifikat 
 @verification_bp.route("/api/verify/<certificate_id>")

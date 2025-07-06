@@ -119,6 +119,11 @@ const Validation = () => {
   const handleUpload = async () => {
     if (!image) return;
 
+    const isZipFile = image.name.endsWith(".zip");
+    const endpoint = isZipFile
+      ? "https://localhost:5000/verify_certificate_zip"
+      : "https://localhost:5000/verify_certificate";
+
     controllerRef.current = new AbortController();
     setCompletedSteps([0]);
 
@@ -126,30 +131,44 @@ const Validation = () => {
     formData.append("file", image);
 
     try {
-      const response = await fetch(
-        "https://localhost:5000/verify_certificate",
-        {
-          method: "POST",
-          credentials: "include",
-          body: formData,
-          signal: controllerRef.current.signal,
-        }
-      );
+      const response = await fetch(endpoint, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+        signal: controllerRef.current.signal,
+      });
 
       const data = await response.json();
 
+      if (isZipFile) {
+        // 🔁 Verifikasi ZIP
+        if (data.success) {
+          Swal.fire({
+            icon: "success",
+            title: "Verifikasi Massal Berhasil",
+            text: `${
+              data.verified_count || 0
+            } sertifikat berhasil diverifikasi.`,
+          }).then(() => handleReset());
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Gagal Verifikasi Massal",
+            text: data.message || "Gagal memproses file ZIP.",
+          });
+        }
+        return;
+      }
+
+      // 🧾 Verifikasi Satuan (PNG)
       if (data.already_verified) {
         Swal.fire({
           icon: "info",
           title: "Sudah Diverifikasi",
-          text: `${"Sertifikat ini sudah diverifikasi sebelumnya pada"} (${
-            data.verified_at
-          })`,
+          text: `Sertifikat ini sudah diverifikasi sebelumnya pada (${data.verified_at})`,
           confirmButtonColor: "#3085d6",
           confirmButtonText: "OK",
-        }).then(() => {
-          handleReset();
-        });
+        }).then(() => handleReset());
         return;
       }
 
@@ -340,7 +359,7 @@ const Validation = () => {
                   id="dropzone-file"
                   type="file"
                   className="hidden"
-                  accept="image/png, image/jpeg"
+                  accept="zip, image/png, image/jpeg"
                   onChange={(e) => {
                     const file = e.target.files[0];
                     if (file) {
@@ -492,7 +511,7 @@ const Validation = () => {
         </div>
       )}
 
-      {!isAdmin && !result &&(
+      {!isAdmin && !result && (
         <div className="bg-red-50 shadow-md rounded-30 grid grid-cols-1 md:grid-cols-2 gap-10 px-8 py-8 border border-red-200">
           <div className="flex flex-col justify-center items-start px-6 space-y-8">
             <div className="flex items-center gap-3">
