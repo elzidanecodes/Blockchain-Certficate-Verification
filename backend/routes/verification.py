@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file, after_this_request
 from datetime import datetime
 import time
 from PIL import Image, ImageDraw, ImageFont
@@ -7,12 +7,14 @@ import base64
 import io
 import numpy as np
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import shutil
+from concurrent.futures import ThreadPoolExecutor
 import zipfile
 import tempfile
 from PIL import Image 
 from datetime import datetime
 from pyzbar.pyzbar import decode
+from io import BytesIO
 from urllib.parse import urlparse, parse_qs
 from flask import session
 from config import contract, AES_SECRET_KEY
@@ -133,7 +135,8 @@ def verify():
 
         file = request.files['file']
         img = Image.open(file.stream).convert("RGB")
-        img_np = np.array(img)
+        img_resize = img.resize((img.width // 2, img.height // 2))
+        img_np = np.array(img_resize)
 
         # Ambil certificate_id dari QR
         certificate_id = extract_certificate_id_from_qr(img_np)
@@ -154,7 +157,12 @@ def verify():
             }), 200
 
         # OCR
+        start_ocr = time.time()
+        print("🔍 Mulai OCR pada gambar...")
         results = reader.readtext(img_np, detail=0)
+        end_ocr = time.time()
+        print(f"⏱️ OCR waktu: {round(end_ocr - start_ocr, 2)} detik")
+
         extracted_text = extract_text_from_image(results)
         if not extracted_text:
             return jsonify({"error": "Gagal mengekstrak data dari gambar"}), 400
@@ -218,7 +226,6 @@ def verify():
         })
 
 
-
         return jsonify({
             "message": "Verifikasi selesai",
             "certificate_id": certificate_id,
@@ -253,27 +260,27 @@ def verify_certificate_zip():
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
-    zip_file = request.files['file']
-    if zip_file.filename == '':
-        return jsonify({"error": "Empty filename"}), 400
+    username = session.get("username", "admin")
+    uploaded_zip = request.files['file']
 
-    results = []
-    with tempfile.TemporaryDirectory() as tmpdir:
-        zip_path = os.path.join(tmpdir, zip_file.filename)
-        zip_file.save(zip_path)
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(tmpdir)
+    try:
+        temp_dir = tempfile.mkdtemp()
+        with zipfile.ZipFile(uploaded_zip, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
 
-        image_paths = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.lower().endswith(".png")]
+        results = []
+        zip_memory = BytesIO()
 
-        def process_image(img_path):
+        def process_file(filename):
             try:
-                img = Image.open(img_path).convert("RGB")
-                img_np = np.array(img)
+                path = os.path.join(temp_dir, filename)
+                img = Image.open(path).convert("RGB")
+                img_resize = img.resize((img.width // 2, img.height // 2))
+                img_np = np.array(img_resize)
 
                 certificate_id = extract_certificate_id_from_qr(img_np)
                 if not certificate_id:
-                    return {"file": img_path, "status": "QR tidak valid"}
+                    return {"file": filename, "status": "QR tidak ditemukan"}
 
                 existing_log = collection_verify_logs.find_one({
                     "certificate_id": {"$regex": f"^{certificate_id}$", "$options": "i"},
@@ -281,63 +288,105 @@ def verify_certificate_zip():
                 })
                 if existing_log:
                     return {"certificate_id": certificate_id, "status": "Sudah diverifikasi"}
+                
+                start_ocr = time.time()
+                print(f"🔍 Mulai OCR pada {filename}...")
+                text_lines = reader.readtext(img_np, detail=0)
+                end_ocr = time.time()
+                print(f"⏱️ OCR waktu: {round(end_ocr - start_ocr, 2)} detik")
 
-                ocr_results = reader.readtext(img_np, detail=0)
-                extracted = extract_text_from_image(ocr_results)
+                extracted = extract_text_from_image(text_lines)
                 if not extracted:
                     return {"certificate_id": certificate_id, "status": "OCR gagal"}
 
                 no_sertif = extracted["no_sertifikat"]
                 name = extracted["name"]
                 student_id = extracted["student_id"]
+
                 hash_input = f"{no_sertif}|{name}|{student_id}"
                 hash_ulang = generate_md5_hash(hash_input)
 
-                valid, cert_id, signature_b64 = get_certificate_data(certificate_id)
+                valid, cert_id, signature = get_certificate_data(certificate_id)
                 if not valid:
-                    return {"certificate_id": certificate_id, "status": "Tidak ditemukan di blockchain"}
+                    return {"certificate_id": certificate_id, "status": "ID tidak ada di blockchain"}
 
-                rsa_valid = verify_signature(hash_ulang, signature_b64)
-                ipfs_cid = ipfs_url = qr_base64 = img_base64 = None
+                rsa_valid = verify_signature(hash_ulang, signature)
+                contract_address = contract.address
+
+                ipfs_cid = None
+                ipfs_url = None
+                qr_base64 = ""
+                img_bytes = None
 
                 if rsa_valid:
-                    data_db = get_certificate_by_id(certificate_id, contract.address)
-                    decrypted = decrypt_data(data_db["encrypted_data_sertif"], AES_SECRET_KEY)
-                    img_bytes, img_base64, qr_base64 = regenerate_verified_certificate(decrypted, certificate_id)
-                    ipfs_res = upload_to_ipfs(img_bytes)
-                    if ipfs_res:
-                        ipfs_cid = ipfs_res.get("cid")
-                        ipfs_url = ipfs_res.get("url")
+                    cert_db = get_certificate_by_id(certificate_id, contract_address)
+                    encrypted = cert_db.get("encrypted_data_sertif")
+                    if not encrypted:
+                        return {"certificate_id": certificate_id, "status": "Data terenkripsi tidak ditemukan"}
+
+                    decrypted_data = decrypt_data(encrypted, AES_SECRET_KEY)
+                    if not decrypted_data:
+                        return {"certificate_id": certificate_id, "status": "Dekripsi gagal"}
+
+                    img_bytes, _, qr_base64 = regenerate_verified_certificate(decrypted_data, certificate_id)
+
+                    # Tambahkan file ke ZIP memory langsung
+                    zip_lock.acquire()
+                    try:
+                        with zipfile.ZipFile(zip_memory, 'a', zipfile.ZIP_DEFLATED) as zipf:
+                            zipf.writestr(f"{certificate_id}.png", img_bytes)
+                    finally:
+                        zip_lock.release()
+
+                    ipfs = upload_to_ipfs(img_bytes)
+                    if ipfs:
+                        ipfs_cid = ipfs.get("cid")
+                        ipfs_url = ipfs.get("url")
 
                 save_verify_log({
                     "certificate_id": certificate_id,
                     "no_sertifikat": no_sertif,
-                    "contract_address": contract.address,
+                    "contract_address": contract_address,
                     "ipfs_cid": ipfs_cid,
                     "ipfs_url": ipfs_url,
                     "qr_code": qr_base64,
                     "hash": hash_ulang,
-                    "verified_by": session.get("username", "admin"),
+                    "verified_by": username,
                     "valid": rsa_valid,
                     "result": "success" if rsa_valid else "failed",
                     "note": "Sertifikat berhasil diverifikasi" if rsa_valid else "Verifikasi gagal"
                 })
 
-                return {"certificate_id": certificate_id, "status": "success" if rsa_valid else "invalid signature"}
+                return {"certificate_id": certificate_id, "status": "success" if rsa_valid else "invalid"}
 
             except Exception as e:
-                return {"file": img_path, "status": "error", "message": str(e)}
+                return {"file": filename, "status": f"Error: {str(e)}"}
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(process_image, img_path) for img_path in image_paths]
-            for future in as_completed(futures):
-                results.append(future.result())
+        from threading import Lock
+        zip_lock = Lock()
 
-    return jsonify({
-        "message": "Batch verifikasi selesai",
-        "jumlah_total": len(results),
-        "hasil": results
-    })
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            results = list(executor.map(process_file, os.listdir(temp_dir)))
+
+        shutil.rmtree(temp_dir)
+        zip_memory.seek(0)
+        zip_base64 = base64.b64encode(zip_memory.read()).decode("utf-8")
+        verified_success = [r for r in results if r.get("status") == "success"]
+
+        return jsonify({
+            "message": "Verifikasi selesai",
+            "success": True,
+            "verified_count": len(verified_success),
+            "jumlah_total": len(results),
+            "hasil": results,
+            "zip_base64": zip_base64
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 
 # Endpoint untuk API verifikasi sertifikat 
 @verification_bp.route("/api/verify/<certificate_id>")
@@ -365,6 +414,23 @@ def api_verify_certificate(certificate_id):
         "verified_at": log.get("timestamp").strftime("%Y-%m-%d"),
         "note": log.get("note", "")
     })
+
+@verification_bp.route("/download_zip", methods=["GET"])
+def download_verified_zip():
+    zip_path = session.get("last_verified_zip")
+    if not zip_path or not os.path.exists(zip_path):
+        return jsonify({"error": "File ZIP tidak ditemukan"}), 404
+
+    @after_this_request
+    def cleanup(response):
+        try:
+            os.remove(zip_path)
+            shutil.rmtree(os.path.dirname(zip_path), ignore_errors=True)
+        except Exception as e:
+            print(f"❌ Gagal hapus sementara: {e}")
+        return response
+
+    return send_file(zip_path, as_attachment=True, download_name="hasil_verifikasi.zip")
     
 @verification_bp.route("/get_verified_image/<certificate_id>", methods=["GET"])
 def get_verified_image(certificate_id):

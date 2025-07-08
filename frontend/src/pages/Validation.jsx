@@ -95,9 +95,9 @@ const Validation = () => {
     );
   }
 
-  const handleReset = () => {
+  const handleReset = (showPopup = true) => {
     if (controllerRef.current) {
-      controllerRef.current.abort(); // stop verifikasi backend
+      controllerRef.current.abort();
     }
     setImage(null);
     setResult(null);
@@ -107,13 +107,15 @@ const Validation = () => {
     setIsStepFailed(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
 
-    Swal.fire({
-      icon: "info",
-      title: "Dibatalkan",
-      text: "Proses verifikasi telah dihentikan.",
-      timer: 1800,
-      showConfirmButton: false,
-    });
+    if (showPopup) {
+      Swal.fire({
+        icon: "info",
+        title: "Dibatalkan",
+        text: "Proses verifikasi telah dihentikan.",
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    }
   };
 
   const handleUpload = async () => {
@@ -141,22 +143,44 @@ const Validation = () => {
       const data = await response.json();
 
       if (isZipFile) {
-        // 🔁 Verifikasi ZIP
-        if (data.success) {
-          Swal.fire({
-            icon: "success",
-            title: "Verifikasi Massal Berhasil",
-            text: `${
-              data.verified_count || 0
-            } sertifikat berhasil diverifikasi.`,
-          }).then(() => handleReset());
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Gagal Verifikasi Massal",
-            text: data.message || "Gagal memproses file ZIP.",
-          });
+        const gagal = data.hasil?.filter((r) => r.status !== "success") || [];
+
+        let htmlContent = `<b>${data.verified_count}</b> sertifikat berhasil diverifikasi.<br> <b>${gagal.length}</b> gagal diverifikasi.<br><br>`;
+
+        // Generate link download dari zip_base64
+        if (data.zip_base64) {
+          const zipBlob = new Blob(
+            [Uint8Array.from(atob(data.zip_base64), (c) => c.charCodeAt(0))],
+            { type: "application/zip" }
+          );
+          const zipUrl = URL.createObjectURL(zipBlob);
+          const downloadLink = document.createElement("a");
+          downloadLink.href = zipUrl;
+          downloadLink.download = "hasil_verifikasi.zip";
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          URL.revokeObjectURL(zipUrl);
+
+          htmlContent += `<p class="text-red-dark animate-pulse">File ZIP hasil telah otomatis diunduh.</p>`;
         }
+
+        if (gagal.length > 0) {
+          htmlContent += `
+<pre class="text-red-700">${gagal
+            .map((g) => `${g.certificate_id || g.file}: ${g.status}`)
+            .join("\n")}</pre>`;
+        }
+
+        Swal.fire({
+          icon: data.success ? "success" : "error",
+          title: data.success
+            ? "Verifikasi Massal Berhasil"
+            : "Gagal Verifikasi Massal",
+          html: htmlContent,
+          confirmButtonColor: "#3085d6",
+        }).then(() => handleReset(false));
+
         return;
       }
 
@@ -380,7 +404,7 @@ const Validation = () => {
                   Verifikasi
                 </button>
                 <button
-                  onClick={handleReset}
+                  onClick={() => handleReset(true)}
                   className="border border-blue-dark px-7 py-2 rounded-5"
                 >
                   Batal
