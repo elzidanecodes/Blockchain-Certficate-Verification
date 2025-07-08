@@ -44,11 +44,28 @@ def generate_certificate(data):
     for field in required_fields:
         if field not in data or not data[field]:
             raise ValueError(f"Missing required field: {field}")
+    # Konversi tipe field sesuai definisi frontend
+    try:
+        data["listening"] = int(data["listening"])
+        data["reading"] = int(data["reading"])
+        data["writing"] = int(data["writing"])
+        data["total_lr"] = int(data["total_lr"])
+        data["total_writing"] = int(data["total_writing"])
+    except (ValueError, TypeError):
+        raise ValueError("Field nilai Listening, Reading, Writing, Total LR, dan Total Writing harus berupa angka (integer).")
+
+    # Konversi semua field lainnya jadi string agar aman untuk hash dan proses lainnya
+    for key in data:
+        if key not in ["listening", "reading", "writing", "total_lr", "total_writing"]:
+            if not isinstance(data[key], str):
+                data[key] = str(data[key])
 
     # Format hash input
     hash_input = f"{data['no_sertifikat']}|{data['name']}|{data['student_id']}"
     print("📌 HASH input saat generate:", hash_input)
     md5_hash = generate_md5_hash(hash_input)
+
+
 
     # Digital signature
     private_key = load_private_key()
