@@ -13,6 +13,7 @@ instance/
 backend/.env
 backend/.env.*
 backend/keys/
+backend/session/
 *.pem
 *.key
 *.crt

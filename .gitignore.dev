@@ -1,6 +1,7 @@
 # ===============================
 # Umum (tetap hindari file berat)
 backend/venv/
+backend/session/
 __pycache__/
 *.pyc
 *.pyo
