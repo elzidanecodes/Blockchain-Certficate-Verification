@@ -1,36 +1,72 @@
-from celery import chain
 import numpy as np
-import tempfile
-import os
-import uuid
+from utils.qr_utils import extract_certificate_id_from_qr
+from utils.ocr_utils import extract_text_from_image
+from crypto.hash_utils import generate_md5_hash
+from crypto.rsa_utils import verify_signature
+from ipfs.ipfs_utils import upload_to_ipfs
+from database.mongo import get_certificate_by_id, save_verify_log
+from config import AES_SECRET_KEY, contract
+from crypto.aes_utils import decrypt_data
+from utils.image_utils import regenerate_verified_certificate
 
-from utils.ocr_utils import run_ocr_and_extract
-from utils.hash_utils import run_hashing
-from utils.rsa_utils import run_signature_check
-from utils.ipfs_utils import run_regenerate_ipfs
-from utils.log_utils import run_logging
+def process_single_certificate(npy_path, filename, username="admin"):
+    try:
+        image_np = np.load(npy_path)
+        certificate_id = extract_certificate_id_from_qr(image_np)
+        if not certificate_id:
+            return {"file": filename, "status": "QR tidak ditemukan"}
+        extracted = extract_text_from_image(image_np)
+        if not extracted:
+            return {"certificate_id": certificate_id, "status": "OCR gagal"}
 
+        no_sertif = extracted["no_sertifikat"]
+        name = extracted["name"]
+        student_id = extracted["student_id"]
+        hash_input = f"{no_sertif}|{name}|{student_id}"
+        hash_ulang = generate_md5_hash(hash_input)
 
-def jalankan_proses_verifikasi(img_np: np.ndarray, filename: str, username: str):
-    # Simpan sementara sebagai .npy
-    temp_dir = tempfile.gettempdir()
-    unique_name = f"{uuid.uuid4().hex}_{filename.replace(' ', '_')}.npy"
-    npy_path = os.path.join(temp_dir, unique_name)
-    np.save(npy_path, img_np)
+        from routes.blockchain import get_certificate_data
+        valid, cert_id, signature = get_certificate_data(certificate_id)
+        if not valid:
+            return {"certificate_id": certificate_id, "status": "ID tidak ada di blockchain"}
 
-    # Jalankan pipeline Celery
-    task_chain = chain(
-        run_ocr_and_extract.s(npy_path),            
-        run_hashing.s(),                  
-        run_signature_check.s(),        
-        run_regenerate_ipfs.s(),         
-        run_logging.s()                  
-    )
+        rsa_valid = verify_signature(hash_ulang, signature)
+        contract_address = contract.address
 
-    task_chain.delay()
+        ipfs_cid, ipfs_url, qr_base64 = None, None, ""
+        img_bytes = None
 
-    return {
-        "message": "Task verifikasi dikirim",
-        "filename": filename,
-        "task": unique_name
-    }
+        if rsa_valid:
+            cert_db = get_certificate_by_id(certificate_id, contract_address)
+            encrypted = cert_db.get("encrypted_data_sertif")
+            if not encrypted:
+                return {"certificate_id": certificate_id, "status": "Data terenkripsi tidak ditemukan"}
+
+            decrypted_data = decrypt_data(encrypted, AES_SECRET_KEY)
+            if not decrypted_data:
+                return {"certificate_id": certificate_id, "status": "Dekripsi gagal"}
+
+            img_bytes, _, qr_base64 = regenerate_verified_certificate(decrypted_data, certificate_id)
+            ipfs = upload_to_ipfs(img_bytes)
+            if ipfs:
+                ipfs_cid = ipfs.get("cid")
+                ipfs_url = ipfs.get("url")
+
+        save_verify_log({
+            "certificate_id": certificate_id,
+            "no_sertifikat": no_sertif,
+            "contract_address": contract_address,
+            "ipfs_cid": ipfs_cid,
+            "ipfs_url": ipfs_url,
+            "qr_code": qr_base64,
+            "hash": hash_ulang,
+            "verified_by": username,
+            "valid": rsa_valid,
+            "result": "success" if rsa_valid else "failed",
+            "note": "Sertifikat berhasil diverifikasi" if rsa_valid else "Verifikasi gagal"
+        })
+
+        return {"certificate_id": certificate_id, "status": "success" if rsa_valid else "invalid"}
+
+    except Exception as e:
+        return {"file": filename, "status": f"Error: {str(e)}"}

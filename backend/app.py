@@ -10,7 +10,6 @@ from database.auth import auth_bp
 from crypto.rsa_utils import generate_rsa_keys
 from datetime import timedelta
 import os
-from routes.ocr_async import ocr_async_bp
 
 app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
 
@@ -57,7 +56,6 @@ app.register_blueprint(blockchain_bp, url_prefix="/blockchain")
 app.register_blueprint(verification_bp)
 app.register_blueprint(activity_bp)
 app.register_blueprint(auth_bp)
-app.register_blueprint(ocr_async_bp)
 
 if __name__ == "__main__":
     app.run(ssl_context=(CERT_PATH, KEY_PATH))

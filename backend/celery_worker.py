@@ -1,15 +1,16 @@
-from celery import chain
-from utils.ocr_utils import run_ocr_and_extract
-from utils.hash_utils import run_hashing
-from utils.rsa_utils import run_signature_check
-from utils.ipfs_utils import run_regenerate_ipfs
-from utils.log_utils import run_logging
+from celery import Celery
+import os
+import sys
 
-task = chain(
-    run_ocr_and_extract.s(file_path),
-    run_hashing.s(),
-    run_signature_check.s(),
-    run_regenerate_ipfs.s(),
-    run_logging.s()
-)
-task.delay()
+# Tambahkan current directory ke sys.path (opsional jika diperlukan)
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+# Inisialisasi Celery
+celery = Celery("tasks")
+celery.conf.broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+celery.conf.result_backend = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+
+
+# Import task hybrid (CPU-bound dan IO-bound)
+from utils.verification_cpu import verification_cpu
+from utils.verification_io import verification_io

@@ -1,37 +1,79 @@
-import numpy as np
 import easyocr
-import os
-from celery import Celery
-from utils.qr_utils import extract_certificate_id_from_qr
-from utils.ocr_logic import extract_text_from_image  # dipisah logika ekstrak OCR agar modular
 
-celery = Celery("tasks")
+reader = None
 
-reader = easyocr.Reader(["en", "id"], gpu=True)
 
-@celery.task(name="tasks.run_ocr_and_extract")
-def run_ocr_and_extract(file_path):
-    try:
-        img_np = np.load(file_path)
-        certificate_id = extract_certificate_id_from_qr(img_np)
+def get_reader():
+    global reader
+    if reader is None:
+        print("🧠 Membuat EasyOCR reader baru...")
+        reader = easyocr.Reader(['en', 'id'], gpu=True)
+    else:
+        print("✅ EasyOCR reader sudah ada, pakai ulang.")
+    return reader
 
-        if not certificate_id:
-            return {"status": "QR tidak ditemukan"}
+def extract_text_from_image(results):
+    print("📄 Hasil EasyOCR:")
+    for r in results:
+        print("-", r)
 
-        text_lines = reader.readtext(img_np, detail=0)
-        extracted = extract_text_from_image(text_lines)
+    if not results or len(results) < 3:
+        print("❌ OCR hasil terlalu sedikit:", results)
+        return {}
 
-        os.remove(file_path)  # cleanup
+    no_sertifikat = ""
+    name = ""
+    student_id = ""
+    department = ""
+    test_date = ""
 
-        if not extracted:
-            return {"certificate_id": certificate_id, "status": "OCR gagal"}
+    combined = list(map(str.strip, results))
+    for i, line in enumerate(combined):
+        line_lower = line.lower()
 
+        if "no:" in line_lower and not no_sertifikat:
+            if ":" in line:
+                parts = line.split(":")
+                if len(parts) > 1 and len(parts[1].strip()) > 5:
+                    no_sertifikat = parts[1].strip()
+            elif i + 1 < len(combined):
+                next_line = combined[i + 1].strip()
+                if len(next_line) > 5:
+                    no_sertifikat = next_line
+
+        elif "name" in line_lower and not name:
+            if i + 1 < len(combined):
+                possible_name = combined[i + 1].strip()
+                if len(possible_name.split()) >= 2:
+                    name = possible_name
+
+        elif "student id" in line_lower and not student_id:
+            if i + 1 < len(combined):
+                sid = combined[i + 1].strip()
+                if sid.isdigit() and len(sid) >= 6:
+                    student_id = sid
+            elif line.strip().isdigit() and len(line.strip()) >= 6:
+                student_id = line.strip()
+
+        elif "department" in line_lower and not department:
+            if i + 1 < len(combined):
+                department = combined[i + 1].strip()
+
+        elif "test date" in line_lower and not test_date:
+            if i + 1 < len(combined):
+                test_date_line = combined[i + 1].strip()
+                if test_date_line.startswith(":"):
+                    test_date_line = test_date_line[1:].strip()
+                test_date = test_date_line
+
+    print("📌 Ekstrak OCR:", f"{no_sertifikat}|{name}|{student_id}|{department}|{test_date}")
+
+    if all([no_sertifikat, name, student_id]):
         return {
-            "status": "ok",
-            "certificate_id": certificate_id,
-            "ocr_result": text_lines,
-            "extracted": extracted
+            "no_sertifikat": no_sertifikat,
+            "name": name,
+            "student_id": student_id,
+            "department": department,
+            "test_date": test_date
         }
-
-    except Exception as e:
-        return {"status": f"error: {str(e)}"}
+    return {}

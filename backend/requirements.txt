@@ -21,3 +21,5 @@ qrcode
 numpy
 pyzbar
 torch
+pytesseract 
+opencv-python

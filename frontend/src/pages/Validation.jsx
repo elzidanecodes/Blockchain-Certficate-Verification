@@ -16,6 +16,11 @@ const Validation = () => {
   const { certificate_id } = useParams();
   const [role, setRole] = useState(null);
   const isAdmin = role === "admin";
+  const [completedCount, setCompletedCount] = useState(0);
+  const [totalTasks, setTotalTasks] = useState(0);
+  const [isPollingDone, setIsPollingDone] = useState(false);
+  const taskResultsRef = useRef([]);
+  const zipDataRef = useRef(null);
 
   useEffect(() => {
     fetch("https://localhost:5000/api/check_role", {
@@ -87,6 +92,48 @@ const Validation = () => {
       });
   }, [certificate_id, role]);
 
+  useEffect(() => {
+    if (!isPollingDone || totalTasks === 0) return;
+
+    const results = taskResultsRef.current || [];
+    const zipBase64 = zipDataRef.current;
+
+    const berhasil = results.filter((r) => r.valid === true);
+    const gagal = results.filter((r) => !r.valid);
+
+    let htmlContent = `<b>${berhasil.length}</b> berhasil diverifikasi.<br><b>${gagal.length}</b> gagal.<br><br>`;
+    if (gagal.length > 0) {
+      htmlContent += `<pre class="text-red-700">${gagal
+        .map((g) => `${g.file}: ${g.note || g.status}`)
+        .join("\n")}</pre>`;
+    }
+
+    if (zipBase64) {
+      const zipBlob = new Blob(
+        [Uint8Array.from(atob(zipBase64), (c) => c.charCodeAt(0))],
+        { type: "application/zip" }
+      );
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = zipUrl;
+      downloadLink.download = "hasil_verifikasi.zip";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(zipUrl);
+
+      htmlContent += `<p class="text-red-dark animate-pulse">File ZIP hasil telah otomatis diunduh.</p>`;
+    }
+
+    Swal.fire({
+      icon: gagal.length === 0 ? "success" : "warning",
+      title:
+        gagal.length === 0 ? "Verifikasi Massal Berhasil" : "Sebagian Gagal",
+      html: htmlContent,
+      confirmButtonColor: "#3085d6",
+    }).then(() => handleReset(false));
+  }, [isPollingDone, totalTasks]);
+
   if (role === null) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-600 dark:text-white">
@@ -118,6 +165,32 @@ const Validation = () => {
     }
   };
 
+  const pollTaskResults = (taskId, fileName, resolve) => {
+    const intervalId = setInterval(() => {
+      fetch(`https://localhost:5000/get_task_result/${taskId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status === "pending") return;
+
+          clearInterval(intervalId);
+
+          setCompletedCount((prev) => prev + 1);
+
+          resolve({ file: fileName, ...data });
+        })
+        .catch(() => {
+          clearInterval(intervalId);
+          setCompletedCount((prev) => prev + 1);
+
+          resolve({
+            file: fileName,
+            valid: false,
+            note: "Gagal mengambil hasil.",
+          });
+        });
+    }, 1500);
+  };
+
   const handleUpload = async () => {
     if (!image) return;
 
@@ -143,55 +216,33 @@ const Validation = () => {
       const data = await response.json();
 
       if (isZipFile) {
-        const gagal = data.hasil?.filter((r) => r.status !== "success") || [];
+        const taskList = data.results || [];
+        setCompletedCount(0);
+        setTotalTasks(taskList.length);
+        setCurrentStep("progress");
 
-        let htmlContent = `<b>${data.verified_count}</b> sertifikat berhasil diverifikasi.<br> <b>${gagal.length}</b> gagal diverifikasi.<br><br>`;
+        const promises = taskList.map(
+          (item) =>
+            new Promise((resolve) => {
+              pollTaskResults(item.task_id, item.file, resolve);
+            })
+        );
 
-        // Generate link download dari zip_base64
-        if (data.zip_base64) {
-          const zipBlob = new Blob(
-            [Uint8Array.from(atob(data.zip_base64), (c) => c.charCodeAt(0))],
-            { type: "application/zip" }
-          );
-          const zipUrl = URL.createObjectURL(zipBlob);
-          const downloadLink = document.createElement("a");
-          downloadLink.href = zipUrl;
-          downloadLink.download = "hasil_verifikasi.zip";
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          URL.revokeObjectURL(zipUrl);
+        const taskResults = await Promise.all(promises);
 
-          htmlContent += `<p class="text-red-dark animate-pulse">File ZIP hasil telah otomatis diunduh.</p>`;
-        }
-
-        if (gagal.length > 0) {
-          htmlContent += `
-<pre class="text-red-700">${gagal
-            .map((g) => `${g.certificate_id || g.file}: ${g.status}`)
-            .join("\n")}</pre>`;
-        }
-
-        Swal.fire({
-          icon: data.success ? "success" : "error",
-          title: data.success
-            ? "Verifikasi Massal Berhasil"
-            : "Gagal Verifikasi Massal",
-          html: htmlContent,
-          confirmButtonColor: "#3085d6",
-        }).then(() => handleReset(false));
-
+        // Simpan hasil ke ref agar bisa dipakai useEffect
+        taskResultsRef.current = taskResults;
+        zipDataRef.current = data.zip_base64 || null;
+        setIsPollingDone(true);
         return;
       }
 
-      // 🧾 Verifikasi Satuan (PNG)
+      // Verifikasi Satuan
       if (data.already_verified) {
         Swal.fire({
           icon: "info",
           title: "Sudah Diverifikasi",
           text: `Sertifikat ini sudah diverifikasi sebelumnya pada (${data.verified_at})`,
-          confirmButtonColor: "#3085d6",
-          confirmButtonText: "OK",
         }).then(() => handleReset());
         return;
       }
@@ -200,24 +251,6 @@ const Validation = () => {
         ...data,
         source: "upload",
       });
-
-      if (data.valid) {
-        Swal.fire({
-          icon: "success",
-          title: "Sertifikat Valid",
-          text: data.note || "Sertifikat berhasil diverifikasi.",
-          confirmButtonColor: "#3085d6",
-          confirmButtonText: "OK",
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Verifikasi Gagal",
-          text: "Sertifikat tidak valid atau data tidak sesuai.",
-          confirmButtonColor: "#DF0404",
-          confirmButtonText: "Tutup",
-        });
-      }
 
       const stepDur = data.step_durations || {};
       const stepMap = {
@@ -243,8 +276,22 @@ const Validation = () => {
         setCompletedSteps((prev) =>
           prev.includes(3) ? [...prev, 4] : [...prev, 3, 4]
         );
+        Swal.fire({
+          icon: "success",
+          title: "Sertifikat Valid",
+          text: data.note || "Sertifikat berhasil diverifikasi.",
+          confirmButtonColor: "#3085d6",
+          confirmButtonText: "OK",
+        });
       } else {
         setIsStepFailed(true);
+        Swal.fire({
+          icon: "error",
+          title: "Verifikasi Gagal",
+          text: data.note || "Sertifikat tidak valid atau data tidak sesuai.",
+          confirmButtonColor: "#DF0404",
+          confirmButtonText: "Tutup",
+        });
       }
     } catch (error) {
       if (error.name === "AbortError") {
@@ -339,7 +386,7 @@ const Validation = () => {
               </ul>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 mb-2">
               <h2 className="text-lg font-semibold mb-2">Unggah File</h2>
               <div
                 onDrop={(e) => {
@@ -395,6 +442,16 @@ const Validation = () => {
                   }}
                 />
               </div>
+              {totalTasks > 0 && !isPollingDone && (
+                <div className="w-full bg-gray-200 rounded-50 h-4 relative">
+                  <div
+                    className="bg-green-500 h-4 rounded-50 transition-all duration-300 flex items-center justify-center text-white text-xs font-semibold"
+                    style={{ width: `${(completedCount / totalTasks) * 100}%` }}
+                  >
+                    {Math.round((completedCount / totalTasks) * 100)}%
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 flex gap-2">
                 <button
