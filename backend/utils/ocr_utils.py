@@ -1,16 +1,7 @@
 import easyocr
 
-reader = None
-
-
-def get_reader():
-    global reader
-    if reader is None:
-        print("🧠 Membuat EasyOCR reader baru...")
-        reader = easyocr.Reader(['en', 'id'], gpu=True)
-    else:
-        print("✅ EasyOCR reader sudah ada, pakai ulang.")
-    return reader
+# OCR reader global (gunakan GPU jika tersedia)
+reader = easyocr.Reader(['en', 'id'], gpu=True)
 
 def extract_text_from_image(results):
     print("📄 Hasil EasyOCR:")
@@ -76,4 +67,3 @@ def extract_text_from_image(results):
             "department": department,
             "test_date": test_date
         }
-    return {}

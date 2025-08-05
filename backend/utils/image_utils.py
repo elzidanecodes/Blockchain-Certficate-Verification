@@ -11,14 +11,6 @@ TEMPLATE_PATH = os.path.join(os.path.dirname(BASE_DIR), "static", "pect_template
 
 # Regenerate sertifikat terverifikasi
 def regenerate_verified_certificate(data, certificate_id):
-    
-    safe_data = {k: str(v) for k, v in data.items()}
-
-    # Tambahkan key kosong jika tidak tersedia
-    for key in ["listening", "reading", "total_lr", "writing", "total_writing"]:
-        safe_data.setdefault(key, "")
-
-    
     # Load template
     if not os.path.exists(TEMPLATE_PATH):
         raise FileNotFoundError("Template sertifikat tidak ditemukan")
@@ -34,17 +26,17 @@ def regenerate_verified_certificate(data, certificate_id):
         font = ImageFont.load_default()
 
     # 🖊️ Tulis ulang seluruh data ke template
-    draw.text((1005, 454), safe_data["no_sertifikat"], font=font, fill="black")
-    draw.text((415, 502), safe_data["name"], font=font, fill="black")
-    draw.text((415, 536), safe_data["student_id"], font=font, fill="black")
-    draw.text((1225, 502), safe_data["department"], font=font, fill="black")
-    draw.text((1225, 536), safe_data["test_date"], font=font, fill="black")
+    draw.text((1005, 454), data["no_sertifikat"], font=font, fill="black")
+    draw.text((415, 502), data["name"], font=font, fill="black")
+    draw.text((415, 536), data["student_id"], font=font, fill="black")
+    draw.text((1225, 502), data["department"], font=font, fill="black")
+    draw.text((1225, 536), data["test_date"], font=font, fill="black")
 
-    draw.text((640, 655), safe_data["listening"], font=font, fill="black")
-    draw.text((980, 655), safe_data["reading"], font=font, fill="black")
-    draw.text((1310, 655), safe_data["total_lr"], font=font, fill="black")
-    draw.text((830, 948), safe_data["writing"], font=font, fill="black")
-    draw.text((1130, 948), safe_data["total_writing"], font=font, fill="black")
+    draw.text((640, 655), str(data["listening"]), font=font, fill="black")
+    draw.text((980, 655), str(data["reading"]), font=font, fill="black")
+    draw.text((1310, 655), str(data["total_lr"]), font=font, fill="black")
+    draw.text((830, 948), str(data["writing"]), font=font, fill="black")
+    draw.text((1130, 948), str(data["total_writing"]), font=font, fill="black")
 
     # Generate QR final → link publik
     qr_data = f"https://localhost:5173/verify/{certificate_id}"

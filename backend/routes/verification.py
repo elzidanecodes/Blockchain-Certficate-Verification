@@ -1,6 +1,4 @@
 import zipfile
-from celery import chain
-import celery
 from flask import Blueprint, request, jsonify, send_file, after_this_request
 from PIL import Image, ImageOps
 import numpy as np
@@ -8,16 +6,14 @@ import os
 import shutil
 import tempfile
 from zipfile import ZipFile
+from PIL import Image 
 import uuid
 from flask import session
+from celery_worker import run_verifikasi
 from database.mongo import get_certificate_by_id, collection_verify_logs
 from database.auth import get_fingerprint
 from utils.verification_utils import process_single_certificate
 from config import contract
-from utils.verification_cpu import verification_cpu
-from utils.verification_io import verification_io
-from celery.result import AsyncResult
-
 
 
 verification_bp = Blueprint("verification", __name__)
@@ -61,86 +57,55 @@ def verify():
 
 @verification_bp.route("/verify_certificate_zip", methods=["POST"])
 def verify_certificate_zip():
-    uploaded_zip = request.files.get('file')
-    username = session.get("username", "admin")
+    expected_fingerprint = session.get("fingerprint")
+    current_fingerprint = get_fingerprint()
 
-    if not uploaded_zip:
+    if expected_fingerprint != current_fingerprint:
+        session.clear()
+        return jsonify({"error": "Session mismatch"}), 401
+
+    if session.get("role") != "admin":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
+
+    username = session.get("username", "admin")
+    uploaded_zip = request.files['file']
+    task_ids = []
 
     try:
         temp_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(uploaded_zip, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
 
-        results = []
         for filename in os.listdir(temp_dir):
-            print(f"🔍 Processing file: {filename}")
-            path = os.path.join(temp_dir, filename)
-            try:
-                img = Image.open(path).convert("RGB")
-                resized = img.resize((img.width // 2, img.height // 2))
-                gray = ImageOps.grayscale(resized)
-                img_np = np.array(gray).astype("uint8")
+            print("🔍 Memproses file:", filename)
+            if not filename.lower().endswith((".png", ".jpg", ".jpeg")):
+                continue
+            full_path = os.path.join(temp_dir, filename)
+            npy_path = os.path.join(temp_dir, f"{filename}.npy")
 
-                data = {
-                    "filename": filename,
-                    "username": username,
-                    "image_np": img_np.tolist()
-                }
+            img = Image.open(full_path).convert("RGB")
+            img_resize = img.resize((img.width // 2, img.height // 2))
+            gray = ImageOps.grayscale(img_resize)
+            img_np = np.array(gray).astype("uint8")
+            np.save(npy_path, img_np)
 
-                task_chain = chain(
-                    verification_cpu.si(data),
-                    verification_io.s()
-                ).apply_async()
-
-                results.append({
-                    "file": filename,
-                    "task_id": task_chain.id,
-                    "status": "sent"
-                })
-
-            except Exception as e:
-                results.append({
-                    "file": filename,
-                    "status": f"error: {str(e)}"
-                })
-
-        shutil.rmtree(temp_dir)
+            task = run_verifikasi.delay(npy_path, filename, username)
+            task_ids.append({"filename": filename, "task_id": task.id})
 
         return jsonify({
-            "message": "Semua task verifikasi dikirim ke antrean Celery",
-            "total_files": len(results),
-            "results": results
-        })
+            "message": "Verifikasi dikirim ke background",
+            "tasks": task_ids
+        }), 202
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-    
 
-@verification_bp.route("/get_task_result/<task_id>", methods=["GET"])
-def get_task_result(task_id):
-    try:
-        result = AsyncResult(task_id, app=celery)
 
-        if result.state == "PENDING":
-            return jsonify({"status": "pending"}), 202
-
-        elif result.state == "SUCCESS":
-            return jsonify(result.result), 200
-
-        elif result.state == "FAILURE":
-            return jsonify({
-                "status": "failed",
-                "error": str(result.result)
-            }), 500
-
-        else:
-            return jsonify({"status": result.state}), 200
-
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
 
 # Endpoint untuk API verifikasi sertifikat 
 @verification_bp.route("/api/verify/<certificate_id>")

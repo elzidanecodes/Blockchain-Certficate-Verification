@@ -8,6 +8,8 @@ from database.mongo import get_certificate_by_id, save_verify_log
 from config import AES_SECRET_KEY, contract
 from crypto.aes_utils import decrypt_data
 from utils.image_utils import regenerate_verified_certificate
+from utils.ocr_utils import reader
+
 
 def process_single_certificate(npy_path, filename, username="admin"):
     try:
@@ -15,7 +17,8 @@ def process_single_certificate(npy_path, filename, username="admin"):
         certificate_id = extract_certificate_id_from_qr(image_np)
         if not certificate_id:
             return {"file": filename, "status": "QR tidak ditemukan"}
-        extracted = extract_text_from_image(image_np)
+        text_lines = reader.readtext(image_np, detail=0)
+        extracted = extract_text_from_image(text_lines)
         if not extracted:
             return {"certificate_id": certificate_id, "status": "OCR gagal"}
 
