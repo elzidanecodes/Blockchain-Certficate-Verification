@@ -55,16 +55,17 @@ BLOCKCHAIN-VERIFIKASI-SERTIFIKAT/
 
 1. **Admin Login** dan mengisi data sertifikat → dienkripsi AES → simpan MongoDB
 2. Buat hash MD5 → ditandatangani RSA → simpan di blockchain
-3. QR Code dibuat dan disisipkan ke sertifikat PNG
-4. Sertifikat disimpan ke IPFS hanya jika diverifikasi valid
-5. **Verifikasi bisa dilakukan melalui frontend** dengan upload gambar sertifikat
-6. Sistem akan:
+3. Generate Sertifikat
+4. QR Code dibuat dan disisipkan ke sertifikat PNG
+5. Sertifikat disimpan ke IPFS hanya jika diverifikasi valid
+6. **Verifikasi bisa dilakukan melalui frontend** dengan upload gambar sertifikat
+7. Sistem akan:
    - Ekstrak data (OCR)
    - Hitung hash ulang
    - Verifikasi RSA Signature
    - Re-generate sertifikat terverifikasi
    - Simpan ke IPFS dan MongoDB
-7. Publik dapat memverifikasi hanya dengan memindai QR (tanpa login)
+8. Publik dapat memverifikasi hanya dengan memindai QR (tanpa login)
 
 ---
 
@@ -83,6 +84,20 @@ BLOCKCHAIN-VERIFIKASI-SERTIFIKAT/
 ```
 
 ---
+
+## 🖼️ Screenshot
+
+🔗 Sertifikat Terverifikasi
+<p align="center">
+  <img src="frontend/public/certificate-verified.png" alt="Contoh Sertifikat Digital" width="500"/>
+</p>
+
+🔗 Ganache Transaction
+<p align="center"> <img src="docs/ganache.png" alt="Hasil transaksi di Ganache" width="600"/> </p>
+
+🔗 IPFS Upload Result
+<p align="center"> <img src="docs/ipfs-result.png" alt="Contoh hasil upload IPFS" width="600"/> </p>
+<p align="center"> <img src="docs/ipfs-app.png" alt="Contoh hasil upload IPFS" width="600"/> </p>
 
 ## 👮 Role & Akses
 
@@ -105,4 +120,4 @@ Dirilis dengan [Lisensi MIT](LICENSE)
 **Laita Zidan**  
 Program Studi Sistem Informasi Bisnis  
 Politeknik Negeri Malang (POLINEMA)  
-GitHub: [github.com/LaitaZidan](https://github.com/LaitaZidan)
+GitHub: [github.com/elzidanecodes](https://github.com/elzidanecodes)
