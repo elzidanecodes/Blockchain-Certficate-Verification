@@ -4,6 +4,7 @@ from celery import Celery
 import os
 import numpy as np
 import easyocr
+import time
 
 from utils.verification_utils import process_single_certificate
 import sys
@@ -27,12 +28,26 @@ def run_ocr(file_path):
     os.remove(file_path)
     return result
 
-# Task untuk verifikasi lengkap async (OCR + hash + RSA + IPFS)
 @celery.task(name="tasks.run_verifikasi")
 def run_verifikasi(npy_path, filename, username):
+    t0 = time.perf_counter()                     # ⬅️ start timer per sertifikat
     result = process_single_certificate(npy_path, filename, username)
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)  # ⬅️ hitung ms
+
+    # sisipkan ke payload hasil agar tercatat (tidak mengganggu alur lain)
+    try:
+        if isinstance(result, dict):
+            result["verification_time_ms"] = elapsed_ms
+        else:
+            result = {"status": "unknown", "verification_time_ms": elapsed_ms}
+    except Exception:
+        # fallback; jangan sampai gagal hanya karena pengayaan hasil
+        result = {"status": "error_merging_result", "verification_time_ms": elapsed_ms}
+
+    # housekeeping: hapus file temp
     try:
         os.remove(npy_path)
     except Exception as e:
         print(f"❌ Gagal hapus file: {e}")
+
     return result
